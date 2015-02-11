@@ -14,6 +14,6 @@ Description goes here.
 
 == Copyright
 
-Copyright (c) 2014 Guillermo Rodríguez Cano. See LICENSE.txt for
+Copyright (c) 2014 Guillermo Rodriguez Cano. See LICENSE.txt for
 further details.
 

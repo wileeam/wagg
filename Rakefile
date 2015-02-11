@@ -12,15 +12,17 @@ end
 require 'rake'
 
 require 'jeweler'
+require './lib/wagg/crawler/version.rb'
 Jeweler::Tasks.new do |gem|
   # gem is a Gem::Specification... see http://guides.rubygems.org/specification-reference/ for more options
   gem.name = "wagg"
+  gem.version = Wagg::Version::STRING
   gem.homepage = "http://github.com/wileeam/wagg"
   gem.license = "MIT"
-  gem.summary = %Q{TODO: one-line summary of your gem}
-  gem.description = %Q{TODO: longer description of your gem}
+  gem.summary = %Q{Meneame Dataset Generator}
+  gem.description = %Q{This is a nice Meneame crawler}
   gem.email = "wschutz@gmail.com"
-  gem.authors = ["Guillermo Rodríguez Cano"]
+  gem.authors = ["Guillermo Rodriguez Cano"]
   # dependencies defined in Gemfile
 end
 Jeweler::RubygemsDotOrgTasks.new
