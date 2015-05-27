@@ -196,9 +196,6 @@ module Wagg
           news
         end
 
-        #handle_asynchronously :parse_summary
-        #handle_asynchronously :parse
-
       end
 
 
