@@ -33,7 +33,6 @@ module Wagg
 
       def get(url, agent_name='default')
         #@agents[agent_name].get(url)
-        puts agent_name
         agent = self.agent(agent_name)
         agent.get(url)
       end

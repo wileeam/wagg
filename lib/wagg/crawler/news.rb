@@ -77,20 +77,22 @@ module Wagg
           meta_item = body_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-submitted ")]')
 
           # Parse sending and publishing timestamps
-          news_timestamps = Array.new
+          news_timestamps = Hash.new
           timestamp_items = meta_item.search('./span[contains(concat(" ", normalize-space(@class), " "), " ts ")]')
           for t in timestamp_items
             case Wagg::Utils::Functions.str_at_xpath(t, './@title')
               when /\Aenviado:/
-                news_timestamps.unshift(Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i)
+                news_timestamps["creation"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
               when /\Apublicado:/
-                news_timestamps.push(Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i)
+                news_timestamps["publication"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
             end
           end
 
-          # Parse author of news post (NOT the author of the news itself, that we don't know/care)
+          # Parse author of news post (NOT the author(s) of the news itself as we don't know/care)
           author_item = meta_item.search('./a[contains(concat(" ", normalize-space(@class), " "), " tooltip ")]')
-          news_author = Wagg::Utils::Functions.str_at_xpath(author_item, './@href')[/\/user\/(?<author>.+)/,1]
+          news_author = Hash.new
+          news_author["id"] = Wagg::Utils::Functions.str_at_xpath(author_item, './@class')[/(?<author_id>\d+)/].to_i
+          news_author["name"] = Wagg::Utils::Functions.str_at_xpath(author_item, './@href')[/\/user\/(?<author_name>.+)/,1]
 
           # Parse votes count: up-votes (registered and anonymous users) and down-votes (registered users)
           details_item = body_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " news-details ")]')
