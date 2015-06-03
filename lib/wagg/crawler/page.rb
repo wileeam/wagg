@@ -24,8 +24,6 @@ module Wagg
           # Parse list of news summaries
           news_items.each do |n|
             news_object = only_summaries ? Wagg::Crawler::News.parse_summary(n) : Wagg::Crawler::News.parse(n,FALSE,FALSE)
-            puts news_object
-            exit(-1)
             news_list.push(news_object)
           end
 
