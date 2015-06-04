@@ -21,8 +21,8 @@ module Wagg
       # News vote rates
       VOTE_NEWS             =  0
       VOTE_COMMENT          =  1
-      VOTE_NEWS_LIFETIME    = 2592000 # 30 days
-      VOTE_COMMENT_LIFETIME = 2592000 # 30 days (note that )
+      VOTE_NEWS_LIFETIME    = 30*24*60*60 # 30 days
+      VOTE_COMMENT_LIFETIME = 30*24*60*60 # 30 days
       VOTE_NEWS_DOWNRATE_IR = -1
       VOTE_NEWS_DOWNRATE_AN = -2
       VOTE_NEWS_DOWNRATE_CA = -3

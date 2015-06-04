@@ -13,6 +13,7 @@ module Wagg
       attr_accessor :tags
       attr_accessor :comments
 
+      # TODO: Decide whether to store the full raw news in the news after processing or not
       attr_reader :raw
 
       def initialize(id, title, author, description, urls, timestamps, category)
@@ -26,9 +27,16 @@ module Wagg
       end
 
       def closed?
-        closed_item = @raw.search('.//div[contains(concat(" ", normalize-space(@class), " "), " menealo ")]')
-        span_object = closed_item.search('./span')
-        (!span_object.nil? && Wagg::Utils::Functions.str_at_xpath(span_object, './text()') == 'menealo') ? TRUE : FALSE
+        if @raw.nil?
+          if !@timestamps['publication'].nil?
+            ((Time.now.to_i - @timestamps['publication']) <= Wagg::Utils::Constants::VOTE_NEWS_LIFETIME) ? TRUE : FALSE
+          end
+        else
+          closed_item = @raw.search('.//div[contains(concat(" ", normalize-space(@class), " "), " menealo ")]')
+          span_object = closed_item.search('./span')
+          (!span_object.nil? && Wagg::Utils::Functions.str_at_xpath(span_object, './text()') == 'menealo') ? TRUE : FALSE
+        end
+
       end
 
       def open?
