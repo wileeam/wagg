@@ -24,7 +24,7 @@ module Wagg
       Wagg::Crawler::Crawler::parse_single(item)
     end
 
-    def dummy(begin_interval=66, end_interval=66,only_summaries=TRUE)
+    def dummy(begin_interval=63, end_interval=63,only_summaries=TRUE)
       Benchmark.bm(7) do |x|
           x.report("::") {
             Wagg::Crawler::Crawler.parse_page_interval(begin_interval, end_interval, only_summaries).each do |news|

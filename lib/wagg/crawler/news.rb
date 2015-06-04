@@ -143,7 +143,7 @@ module Wagg
 
           # We cannot reuse item DOM element because it does not contain the full news, so load news via Mechanize
           # TODO: Can we do better than this? Maybe methods to parse via URL (and Mechanize.agent) and via DOM?
-          Wagg::Utils::Retriever.instance.agent('news', 60)
+          Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
 
           page = Wagg::Utils::Retriever.instance.get(news.urls['internal'], 'news')
 

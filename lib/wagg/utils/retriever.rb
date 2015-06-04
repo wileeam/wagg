@@ -16,10 +16,10 @@ module Wagg
 
       def initialize
         @agents = Hash.new
-        self.agent('default', 10)
+        self.agent('default', Wagg::Utils::Constants::RETRIEVAL_DELAY['default'])
       end
 
-      def agent(name='default', delay=10)
+      def agent(name='default', delay=Wagg::Utils::Constants::RETRIEVAL_DELAY['default'])
         if @agents[name].nil?
           custom_agent = Mechanize.new
           custom_agent.pre_connect_hooks << lambda do |custom_agent, request|

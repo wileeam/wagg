@@ -32,7 +32,7 @@ module Wagg
 
         private
         def parse(item, url_template, type)
-          Wagg::Utils::Retriever.instance.agent('vote', 5)
+          Wagg::Utils::Retriever.instance.agent('vote', Wagg::Utils::Constants::RETRIEVAL_DELAY['vote'])
 
           votes = Array.new
 

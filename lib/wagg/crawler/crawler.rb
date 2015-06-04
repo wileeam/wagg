@@ -17,7 +17,7 @@ module Wagg
 
           news_list = Array.new
 
-          Wagg::Utils::Retriever.instance.agent('main', 10)
+          Wagg::Utils::Retriever.instance.agent('page', Wagg::Utils::Constants::RETRIEVAL_DELAY['page'])
 
           # Retrieve first page to learn the hard limit on the end_interval that we can have
           # TODO: Can we do better than this (tested that there are pages with more than one 'nofollow')?
@@ -43,7 +43,7 @@ module Wagg
           end
 
           for p in begin_interval..end_interval
-            page = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::PAGE_URL % {page:p}, 'main')
+            page = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::PAGE_URL % {page:p}, 'page')
             page_item = page.search('//*[@id="newswrap"]')
             news_list.concat(Wagg::Crawler::Page.parse(page_item,1,'all',only_summaries))
           end

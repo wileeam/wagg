@@ -43,10 +43,11 @@ module Wagg
                                 "copia/plagio"    => VOTE_NEWS_DOWNRATE_CP
                               }
       # Retrieval defaults delays
-      RETRIEVAL_DELAY = { 'page'     => 10,
+      RETRIEVAL_DELAY = { 'default'  => 10,
+                          'page'     =>  5,
                           'news'     => 15,
-                          'comment'  => 20,
-                          'vote'     => 30
+                          'comment'  => 10,
+                          'vote'     => 5
                          }
       # Maximum number of pages that can be read at once (accounting for 200 news)
       MAX_PAGE_INTERVAL = 10
