@@ -29,14 +29,13 @@ module Wagg
       def closed?
         if @raw.nil?
           if !@timestamps['publication'].nil?
-            ((Time.now.to_i - @timestamps['publication']) <= Wagg::Utils::Constants::VOTE_NEWS_LIFETIME) ? TRUE : FALSE
+            ((Time.now.to_i - @timestamps['publication']) > Wagg::Utils::Constants::VOTE_NEWS_LIFETIME) ? TRUE : FALSE
           end
         else
           closed_item = @raw.search('.//div[contains(concat(" ", normalize-space(@class), " "), " menealo ")]')
           span_object = closed_item.search('./span')
           (!span_object.nil? && Wagg::Utils::Functions.str_at_xpath(span_object, './text()') == 'menealo') ? TRUE : FALSE
         end
-
       end
 
       def open?
