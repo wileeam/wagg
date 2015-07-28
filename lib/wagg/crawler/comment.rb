@@ -5,12 +5,13 @@ require 'wagg/crawler/vote'
 module Wagg
   module Crawler
     class Comment
-      attr_reader :id, :author, :body
+      attr_reader :id, :author, :news_id, :body
       attr_reader :votes, :vote_count, :karma
       attr_reader :timestamps
 
-      def initialize(id, body, timestamps, author, karma, votes, vote_count)
+      def initialize(id, news_id, body, timestamps, author, karma, votes, vote_count)
         @id = id
+        @news_id = news_id
         @body = body
         @author = author
         @timestamps = timestamps
@@ -53,16 +54,17 @@ module Wagg
       end
 
       class << self
-        def parse(item)
+        def parse(item, parse_votes=FALSE)
           # Parse comment's body data
           body_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-body ")]')
           comment_body = body_item.search('./child::node()')
           comment_id = Wagg::Utils::Functions.str_at_xpath(body_item, './@id')[/(?<id>\d+)/].to_i
           # Comment position in news can be extracted from the body (that is the object itself should do it and not in the parsing)
-          # comment_news_position = Wagg::Utils::Functions.str_at_xpath(body_item, './a/strong/text()')[/(?<position>\d+)/].to_i
+          comment_news_id = Wagg::Utils::Functions.str_at_xpath(body_item, './a/strong/text()')[/(?<position>\d+)/].to_i
 
           # Parse comment's authorship meta data
           meta_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-info ")]')
+
           comment_timestamps = Array.new
           timestamp_items = meta_item.search('./span')
           for t in timestamp_items
@@ -81,13 +83,26 @@ module Wagg
           comment_karma = karma_item.nil? ? -1 : karma_item.to_i
           vote_count_item = Wagg::Utils::Functions.str_at_xpath(ballot_item, './/span[@id="vc-%{id}"]/text()' % {id:comment_id})
           comment_vote_count = vote_count_item.nil? ? -1 : vote_count_item.to_i
-          if (comment_karma == comment_vote_count) && (comment_karma == -1)
-            comment_votes = nil
-          else
-            comment_votes = Wagg::Crawler::Vote.parse_comment_votes(comment_id)
+          if parse_votes
+            if (comment_karma == comment_vote_count) && (comment_karma == -1)
+              comment_votes = nil
+            else
+              comment_votes = Wagg::Crawler::Vote.parse_comment_votes(comment_id)
+            end
           end
 
-          Comment.new(comment_id, comment_body, comment_timestamps, comment_author, comment_karma, comment_votes, comment_vote_count)
+          comment = Wagg::Crawler::Comment.new(
+              comment_id,
+              comment_news_id,
+              comment_body,
+              comment_timestamps,
+              comment_author,
+              comment_karma,
+              comment_votes,
+              comment_vote_count
+          )
+
+          comment
         end
 
       end

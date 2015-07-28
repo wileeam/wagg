@@ -9,11 +9,14 @@ module Wagg
       COMMENT_RE = /(?<author>\w+):\s(?<timestamp>\d{1,2}\/\d{1,2}-\d{1,2}:\d{1,2}:\d{1,2})\skarma:\s(?<weight>-?\d+)/
       COMMENT_VOTES_QUERY_URL = 'https://www.meneame.net/backend/get_c_v.php?id=%{id}&p=%{page}'
       COMMENT_URL = 'https://www.meneame.net/c/%{comment}'
+      COMMENT_VOTES_LIFETIME = 30*24*60*60 # 30 days
       # News's vote regular expression and URL query templates
       # author: HH:MM TMZ valor: #
       # author: DD-MM-YYYY HH:MM TMZ valor: #
       NEWS_RE = /(?<author>.+):\s(?<timestamp>(\d{1,2}-\d{1,2}-\d{4}\s)?\d{1,2}:\d{1,2})\s([A-Z]+)\svalor:\s(?<weight>-?\d+)/
       NEWS_VOTES_QUERY_URL = 'https://www.meneame.net/backend/meneos.php?id=%{id}&p=%{page}'
+      NEWS_CONTRIBUTION_LIFETIME = 30*24*60*60 # 30 days
+      NEWS_VOTES_LIFETIME = 30*24*60*60 # 30 days
       # Page URL query templates
       PAGE_URL = 'https://www.meneame.net/?page=%{page}'
       # Vote regular expression matching both votes for news and comments (Not perfect but rather accurate)
@@ -21,7 +24,6 @@ module Wagg
       # News vote rates
       VOTE_NEWS             =  0
       VOTE_COMMENT          =  1
-      VOTE_NEWS_LIFETIME    = 30*24*60*60 # 30 days
       VOTE_COMMENT_LIFETIME = 30*24*60*60 # 30 days
       VOTE_NEWS_DOWNRATE_IR = -1
       VOTE_NEWS_DOWNRATE_AN = -2
@@ -44,10 +46,10 @@ module Wagg
                               }
       # Retrieval defaults delays
       RETRIEVAL_DELAY = { 'default'  => 10,
-                          'page'     =>  5,
-                          'news'     => 15,
-                          'comment'  => 10,
-                          'vote'     => 5
+                          'page'     =>  3,
+                          'news'     => 10,
+                          'comment'  => 5,
+                          'vote'     => 4
                          }
       # Maximum number of pages that can be read at once (accounting for 200 news)
       MAX_PAGE_INTERVAL = 10

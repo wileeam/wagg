@@ -1,13 +1,14 @@
 # encoding: utf-8
 
-#require 'wagg/crawler/comment'
+require 'wagg/crawler/comment'
 
 
 module Wagg
   module Crawler
     class News
       attr_accessor :id, :title, :author, :description, :category, :urls, :timestamps
-      attr_accessor :karma, :votes_count, :clicks, :votes
+      attr_accessor :karma, :votes_count, :clicks
+      attr_reader   :votes
       # TODO: Remove this attribute, not reliable if news is still open for commenting
       attr_accessor :comments_count
       attr_accessor :tags
@@ -27,19 +28,29 @@ module Wagg
       end
 
       def closed?
-        if @raw.nil?
-          if !@timestamps['publication'].nil?
-            ((Time.now.to_i - @timestamps['publication']) > Wagg::Utils::Constants::VOTE_NEWS_LIFETIME) ? TRUE : FALSE
-          end
-        else
-          closed_item = @raw.search('.//div[contains(concat(" ", normalize-space(@class), " "), " menealo ")]')
-          span_object = closed_item.search('./span')
-          (!span_object.nil? && Wagg::Utils::Functions.str_at_xpath(span_object, './text()') == 'menealo') ? TRUE : FALSE
-        end
+        (Time.now.to_i - @timestamps['publication']) > Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME
       end
+
+      #def closed?
+      #  closed_item = @raw.search('.//div[contains(concat(" ", normalize-space(@class), " "), " menealo ")]')
+      #  span_object = closed_item.search('./span')
+      #  (!span_object.nil? && Wagg::Utils::Functions.str_at_xpath(span_object, './text()') == 'menealo') ? TRUE : FALSE
+      #end
 
       def open?
         !self.closed?
+      end
+
+      #private method
+      def votes_available?
+        self.closed? and (Time.now.to_i - @timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME)
+      end
+
+      #private method
+      def votes=
+        if self.votes_available?
+          @votes = Wagg::Crawler::Vote.parse_news_votes(@self.id)
+        end
       end
 
       def to_s
@@ -137,76 +148,91 @@ module Wagg
           news
         end
 
-        def parse(item,parse_comments=FALSE,parse_votes=FALSE)
+        def parse(item, parse_comments=FALSE, parse_votes=FALSE)
+
           # Parse the summary of the news (same information we would get from the front page)
-          news = News.parse_summary(item)
+          news_summary_item = item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
 
-          # We cannot reuse item DOM element because it does not contain the full news, so load news via Mechanize
-          # TODO: Can we do better than this? Maybe methods to parse via URL (and Mechanize.agent) and via DOM?
-          Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
-
-          page = Wagg::Utils::Retriever.instance.get(news.urls['internal'], 'news')
+          puts 'Parsing news summary'
+          news = News.parse_summary(news_summary_item)
 
           # Parse the remaining items of the news that we cannot get from the view of the front page but should be available
-          body_item = page.search('//*[@id="newswrap"]//div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
+          body_item = news_summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
 
+          puts 'Parsing tags'
           # Parse tags
-          tags_item = body_item.search('./span[contains(concat(" ", normalize-space(@class), " "), " news-tags ")]/a')
-          news_tags = Array.new
-          for t in tags_item
-            news_tags.push(Wagg::Utils::Functions.str_at_xpath(t, './text()').strip)
+          news_tags = News.parse_tags(body_item)
+
+          puts 'Parsing comments'
+          # Parse comments (and each comment votes if available)
+          news_comments = nil
+          if parse_comments
+            comments_item = item.search('./div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
+            news_comments = News.parse_comments(comments_item, news.urls['internal'])
           end
 
+          puts 'Parsing votes'
           # Parse votes (if available and configured)
           news_votes = nil
           if parse_votes
-            news_votes = Wagg::Crawler::Vote.parse_news_votes(news.id)
+            news_votes = News.parse_votes(news.id)
           end
-          if !news_votes.nil? and news_votes.empty?
-            news_votes = nil
-          end
-
-
-          # Parse comments (and each comment votes if available)
-          news_comments = Array.new
-          if parse_comments
-            unless news.comments_count.nil?
-              if news.comments_count.to_i <= 100
-                comments_item = page.search('//*[@id="newswrap"]//div[contains(concat(" ", normalize-space(@class), " "), " comments ")]//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/div')
-                for c in comments_item
-                  comment = Wagg::Crawler::Comment.parse(c)
-                  news_comments.push(comment)
-                end
-              else
-                comments_page_index = 1
-                begin
-                  comments_page = Wagg::Utils::Retriever.instance.get("%{url}/%{page}" % {url:news.urls['internal'], page:comments_page_index}, 'news')
-                  comments_item = comments_page.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comments ")]/ol/li/div')
-                  for c in comments_item
-                    comment = Wagg::Crawler::Comment.parse(c)
-                    news_comments.push(comment)
-                  end
-                  comments_page_index += 1
-                end while comments_page_index <= (news.comments_count.to_i / 100.0).ceil
-              end
-            end
-          end
-          if !news_comments.nil? and news_comments.empty?
-            news_votes = nil
-          end
-
 
           # Add parsed items to the news summary and return it (as a full parsed news now)
           news.tags = news_tags
-          news.votes = news_votes
+          #news.votes = news_votes
+          news.votes
           news.comments = news_comments
 
           # Return the object containing the full news (with votes, comments and tags details)
           news
         end
 
-      end
+        def parse_tags(item)
+          tags_item = item.search('.//span[contains(concat(" ", normalize-space(@class), " "), " news-tags ")]/a')
 
+          news_tags = Array.new
+          for t in tags_item
+            news_tags.push(Wagg::Utils::Functions.str_at_xpath(t, './text()').strip)
+          end
+
+          news_tags
+        end
+
+        def parse_comments(item, news_url_internal)
+          # Find out how many pages of comments there are (at least one, the news page)
+          pages_item = item.search('./div[contains(concat(" ", normalize-space(@class), " "), " pages ")]/a')
+          (pages_item.count != 0) ? pages_total = pages_item.count : pages_total = 1
+
+          news_comments = Hash.new
+          pages_counter = 1
+          begin
+            if pages_total > 1
+              comments_page = Wagg::Utils::Retriever.instance.get("%{url}/%{page}" % {url:news_url_internal, page:pages_counter}, 'news')
+              comments_item = comments_page.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/div')
+            else
+              comments_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/div')
+            end
+            puts comments_item.length
+            for c in comments_item
+              puts 'Parsing one comment'
+              comment = Wagg::Crawler::Comment.parse(c, TRUE)
+              news_comments[comment.news_id] = comment
+            end
+
+            pages_counter += 1
+          end while ( pages_counter <= pages_total )
+
+          news_comments
+        end
+
+        def parse_votes(item)
+          news_votes = Vote.parse_news_votes(item)
+
+          news_votes
+        end
+
+      end
 
     end
   end
