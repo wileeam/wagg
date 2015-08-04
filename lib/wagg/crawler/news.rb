@@ -8,7 +8,7 @@ module Wagg
     class News
       attr_accessor :id, :title, :author, :description, :category, :urls, :timestamps
       attr_accessor :karma, :votes_count, :clicks
-      attr_reader   :votes
+      attr_accessor :votes
       # TODO: Remove this attribute, not reliable if news is still open for commenting
       attr_accessor :comments_count
       attr_accessor :tags
@@ -44,13 +44,6 @@ module Wagg
       #private method
       def votes_available?
         self.closed? and (Time.now.to_i - @timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME)
-      end
-
-      #private method
-      def votes=
-        if self.votes_available?
-          @votes = Wagg::Crawler::Vote.parse_news_votes(@self.id)
-        end
       end
 
       def to_s
@@ -153,17 +146,14 @@ module Wagg
           # Parse the summary of the news (same information we would get from the front page)
           news_summary_item = item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
 
-          puts 'Parsing news summary'
           news = News.parse_summary(news_summary_item)
 
           # Parse the remaining items of the news that we cannot get from the view of the front page but should be available
           body_item = news_summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
 
-          puts 'Parsing tags'
           # Parse tags
           news_tags = News.parse_tags(body_item)
 
-          puts 'Parsing comments'
           # Parse comments (and each comment votes if available)
           news_comments = nil
           if parse_comments
@@ -171,10 +161,9 @@ module Wagg
             news_comments = News.parse_comments(comments_item, news.urls['internal'])
           end
 
-          puts 'Parsing votes'
           # Parse votes (if available and configured)
           news_votes = nil
-          if parse_votes
+          if parse_votes && ((Time.now.to_i - news.timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
             news_votes = News.parse_votes(news.id)
           end
 
@@ -215,7 +204,6 @@ module Wagg
             end
             puts comments_item.length
             for c in comments_item
-              puts 'Parsing one comment'
               comment = Wagg::Crawler::Comment.parse(c, TRUE)
               news_comments[comment.news_id] = comment
             end
@@ -227,7 +215,7 @@ module Wagg
         end
 
         def parse_votes(item)
-          news_votes = Vote.parse_news_votes(item)
+          news_votes = Wagg::Crawler::Vote.parse_news_votes(item)
 
           news_votes
         end

@@ -2,17 +2,24 @@
 
 require 'benchmark'
 
-#require 'wagg/crawler/page'
+require 'wagg/utils/constants'
 require 'wagg/crawler/crawler'
+require 'wagg/crawler/comment'
+
+#require 'wagg/crawler/page'
 
 module Wagg
   class << self
 
-    def crawl_interval_by_time(initial_date=(Time.now + (30*24*60*60)), end_date=(initial_date + (30*24*60*60)))
+    def crawl_interval_by_time(initial_date=(Time.now + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME), end_date=(initial_date + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME))
 
       # News < 30 days are always open for votes/comments
       # News >= 30 days are closed for votes and comments
       # Votes information is available up to 30 days after the last comment
+
+      puts initial_date
+
+      puts end_date
 
     end
 
@@ -42,9 +49,6 @@ module Wagg
             end
           }
       end
-
-
-      exit(0)
     end
 
     def dummy_news(url)
@@ -55,6 +59,3 @@ module Wagg
 
 end
 
-#Wagg.dummy_news('https://www.meneame.net/story/albert-rivera-traga-bulo-retirada-bandera-espanola-valencia')
-puts Wagg.dummy_news('https://www.meneame.net/story/leon-riva-aprueba-contratos-hasta-2019-pesar-estar-funciones')
-exit(0)
