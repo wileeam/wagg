@@ -24,11 +24,11 @@ module Wagg
     end
 
     def crawl_interval(begin_interval, end_interval, only_summaries=TRUE)
-      Wagg::Crawler::Crawler::parse_page_interval(begin_interval, end_interval, only_summaries)
+      Wagg::Crawler::Crawler::page_interval(begin_interval, end_interval, only_summaries)
     end
 
     def crawl_single(item)
-      Wagg::Crawler::Crawler::parse_page_single(item, FALSE)
+      Wagg::Crawler::Crawler::page_single(item, FALSE)
     end
 
     def crawl_news(url, votes=FALSE, comments=FALSE)

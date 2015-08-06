@@ -1,6 +1,8 @@
 = wagg
 
-Description goes here.
+Easy to use parser for the Spanish news aggregator Menéame.
+
+Content parsed includes news descriptions, comments and votes if available
 
 == Contributing to wagg
  
