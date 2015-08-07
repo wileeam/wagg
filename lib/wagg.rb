@@ -40,11 +40,3 @@ module Wagg
   end
 
 end
-
-test_url = 'https://www.meneame.net/story/descubren-restos-arqueologicos-tarragona-unos-14-000-anos'
-page_init_interval = 45
-page_end_interval = 45
-with_comments = TRUE
-with_votes = TRUE
-Wagg.crawl_news(test_url, with_comments, with_votes)
-Wagg.crawl_page_interval(page_init_interval, page_end_interval, with_comments, with_votes)
