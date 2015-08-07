@@ -9,11 +9,11 @@ module Wagg
     class Crawler
 
       class << self
-        def page_single(item, only_summaries)
-          Wagg::Crawler::Crawler.parse_page_interval(item, item, only_summaries)
+        def page_single(item, with_comments=FALSE, with_votes=FALSE)
+          Wagg::Crawler::Crawler.page_interval(item, item, with_comments, with_votes)
         end
 
-        def page_interval(begin_interval=1, end_interval=1, only_summaries=TRUE)
+        def page_interval(begin_interval=1, end_interval=1, with_comments=FALSE, with_votes=FALSE)
 
           news_list = Array.new
 
@@ -44,24 +44,25 @@ module Wagg
 
           for p in begin_interval..end_interval
             page = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::PAGE_URL % {page:p}, 'page')
-            page_item = page.search('//*[@id="newswrap"]')
-            news_list.concat(Wagg::Crawler::Page.parse(page_item,1,'all',only_summaries))
+            news_list.concat(Wagg::Crawler::Page.parse(page, 1, 'all', with_comments, with_votes))
           end
 
           news_list
         end
 
 
-        def news(url, votes=FALSE, comments=FALSE)
+        def news(url, with_comments=FALSE, with_votes=FALSE)
           Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
 
           news = Wagg::Utils::Retriever.instance.get(url, 'news')
           news_item = news.search('//*[@id="newswrap"]')
+          news_summary_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
+          news_comments_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
 
-          Wagg::Crawler::News.parse(news_item, comments, votes)
+          Wagg::Crawler::News.parse(news_summary_item, news_comments_item, with_comments, with_votes)
         end
 
-        def comment(url, votes=false)
+        def comment(url, with_comments=FALSE, with_votes=FALSE)
           Wagg::Utils::Retriever.instance.agent('comment', Wagg::Utils::Constants::RETRIEVAL_DELAY['comment'])
           self::Comment.parse(url)
         end

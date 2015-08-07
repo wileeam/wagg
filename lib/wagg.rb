@@ -6,8 +6,6 @@ require 'wagg/utils/constants'
 require 'wagg/crawler/crawler'
 require 'wagg/crawler/comment'
 
-#require 'wagg/crawler/page'
-
 module Wagg
   class << self
 
@@ -23,39 +21,30 @@ module Wagg
 
     end
 
-    def crawl_interval(begin_interval, end_interval, only_summaries=TRUE)
-      Wagg::Crawler::Crawler::page_interval(begin_interval, end_interval, only_summaries)
+    def crawl_page_interval(begin_interval, end_interval, with_comments=FALSE, with_votes=FALSE)
+      Wagg::Crawler::Crawler::page_interval(begin_interval, end_interval, with_comments, with_votes)
     end
 
-    def crawl_single(item)
-      Wagg::Crawler::Crawler::page_single(item, FALSE)
+    def crawl_page_single(item, with_comments=FALSE, with_votes=FALSE)
+      Wagg::Crawler::Crawler::page_single(item, with_comments, with_votes)
     end
 
-    def crawl_news(url, votes=FALSE, comments=FALSE)
-      Wagg::Crawler::Crawler::news(url, votes, comments)
+    def crawl_news(url, with_comments=FALSE, with_votes=FALSE)
+      Wagg::Crawler::Crawler::news(url, with_comments, with_votes)
     end
 
     def crawl_news_for_comments(item)
 
     end
 
-    def dummy(begin_interval=63, end_interval=63,only_summaries=FALSE)
-      Benchmark.bm(7) do |x|
-          x.report("::") {
-            #Wagg::Crawler::Crawler.parse_page_interval(begin_interval, end_interval, only_summaries).each do |news|
-            #  puts news
-            Wagg::Crawler::Crawler.parse_page_single(begin_interval, only_summaries).each do |news|
-              puts news
-            end
-          }
-      end
-    end
-
-    def dummy_news(url)
-      Wagg::Crawler::Crawler.news(url,TRUE,TRUE)
-    end
-
   end
 
 end
 
+test_url = 'https://www.meneame.net/story/descubren-restos-arqueologicos-tarragona-unos-14-000-anos'
+page_init_interval = 45
+page_end_interval = 45
+with_comments = TRUE
+with_votes = TRUE
+Wagg.crawl_news(test_url, with_comments, with_votes)
+Wagg.crawl_page_interval(page_init_interval, page_end_interval, with_comments, with_votes)

@@ -50,15 +50,19 @@ module Wagg
       end
 
       def to_s
-        "%{id} :: %{a} - %{t}" % {id:@id, a:@author, t:@timestamps} +
+        "COMMENT : %{id} - %{t}" % {id:@id, t:@title} +
             "\n" +
-            "  %{k} :: %{vc}" % {k:@karma, vc:@vote_count} +
+            "    %{a} - %{ts}" % {a:@author, ts:@timestamps} +
             "\n" +
-            "  (%{vc}) => %{v}" % {vc:(@votes.nil? ? nil : @votes.size), v:@votes}
+            "    %{b}..." % {b:@body[0,20]} +
+            "\n" +
+            "    %{k} :: %{vc}" % {k:@karma, vc:@vote_count} +
+            "\n" +
+            "    (%{vc}) => %{v}" % {vc:(@votes.nil? ? nil : @votes.size), v:@votes}
       end
 
       class << self
-        def parse(item, parse_votes=FALSE)
+        def parse(item, news_timestamps, with_votes=FALSE)
           # Parse comment's body data
           body_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-body ")]')
           comment_body = body_item.search('./child::node()')
@@ -69,16 +73,8 @@ module Wagg
           # Parse comment's authorship meta data
           meta_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-info ")]')
 
-          comment_timestamps = Hash.new
-          timestamp_items = meta_item.search('./span')
-          for t in timestamp_items
-            case Wagg::Utils::Functions.str_at_xpath(t, './@title')
-              when /\Acreado:/
-                comment_timestamps["creation"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
-              when /\Aeditado:/
-                comment_timestamps["edit"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
-            end
-          end
+          comment_timestamps = Comment.parse_timestamps(meta_item)
+
           comment_author = Wagg::Utils::Functions.str_at_xpath(meta_item, './a/@href')[/\/user\/(?<author>.+)\/commented/,1]
 
           # Parse comment's voting meta data
@@ -88,8 +84,8 @@ module Wagg
           vote_count_item = Wagg::Utils::Functions.str_at_xpath(ballot_item, './/span[@id="vc-%{id}"]/text()' % {id:comment_id})
           comment_vote_count = vote_count_item.nil? ? nil : vote_count_item.to_i
           comment_votes = nil
-          if parse_votes && !comment_karma.nil? && !comment_vote_count.nil? && ((Time.now.to_i - comment_timestamps["creation"]) <= (Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME))
-            puts 'parsing comment votes'
+
+          if with_votes && !comment_karma.nil? && !comment_vote_count.nil? && (Time.now.to_i - news_timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) && (comment_timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= (news_timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME)
             comment_votes = Wagg::Crawler::Vote.parse_comment_votes(comment_id)
           end
 
@@ -103,6 +99,24 @@ module Wagg
               comment_votes,
               comment_vote_count
           )
+
+          comment
+        end
+
+        def parse_timestamps(meta_item)
+          timestamp_items = meta_item.search('./span')
+
+          comment_timestamps = Hash.new
+          for t in timestamp_items
+            case Wagg::Utils::Functions.str_at_xpath(t, './@title')
+              when /\Acreado:/
+                comment_timestamps["creation"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
+              when /\Aeditado:/
+                comment_timestamps["edit"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
+            end
+          end
+
+          comment_timestamps
         end
 
       end
