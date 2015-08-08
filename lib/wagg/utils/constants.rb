@@ -4,6 +4,8 @@ module Wagg
   module Utils
     module Constants
       SITE_URL = 'https://www.meneame.net'
+      # Author URL query template
+      AUTHOR_URL = 'https://www.meneame.net/user/%{name}'
       # Comment's vote regular expression and URL query templates
       # author: DD/MM-HH:MM:SS karma: #
       COMMENT_RE = /(?<author>\w+):\s(?<timestamp>\d{1,2}\/\d{1,2}-\d{1,2}:\d{1,2}:\d{1,2})\skarma:\s(?<weight>-?\d+)/
@@ -49,7 +51,8 @@ module Wagg
                           'page'     =>  3,
                           'news'     => 10,
                           'comment'  => 5,
-                          'vote'     => 4
+                          'vote'     => 4,
+                          'author'   => 3
                          }
       # Maximum number of pages that can be read at once (accounting for 200 news)
       MAX_PAGE_INTERVAL = 10

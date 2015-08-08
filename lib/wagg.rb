@@ -3,6 +3,8 @@
 require 'benchmark'
 
 require 'wagg/utils/constants'
+require 'wagg/utils/functions'
+
 require 'wagg/crawler/crawler'
 require 'wagg/crawler/comment'
 
@@ -27,6 +29,10 @@ module Wagg
 
     def crawl_page_single(item, with_comments=FALSE, with_votes=FALSE)
       Wagg::Crawler::Crawler::page_single(item, with_comments, with_votes)
+    end
+
+    def crawl_author(username)
+      Wagg::Crawler::Crawler::author(username)
     end
 
     def crawl_news(url, with_comments=FALSE, with_votes=FALSE)

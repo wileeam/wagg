@@ -2,6 +2,7 @@
 
 require 'wagg/utils/retriever'
 require 'wagg/crawler/page'
+require 'wagg/crawler/author'
 
 
 module Wagg
@@ -50,6 +51,14 @@ module Wagg
           news_list
         end
 
+        def author(name)
+          Wagg::Utils::Retriever.instance.agent('author', Wagg::Utils::Constants::RETRIEVAL_DELAY['author'])
+
+          author = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::AUTHOR_URL % {name:name}, 'author')
+          author_item = author.search('//*[@id="singlewrap"]')
+
+          Wagg::Crawler::Author.parse(author_item)
+        end
 
         def news(url, with_comments=FALSE, with_votes=FALSE)
           Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])

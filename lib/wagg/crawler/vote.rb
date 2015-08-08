@@ -46,6 +46,8 @@ module Wagg
             for v in votes_partial_list
               vote_item = Wagg::Utils::Functions.str_at_xpath(v, './a/@title').match(Wagg::Utils::Constants::VOTE_RE)
 
+              # Author's string name ONLY (no id...)
+              # TODO: Should we retrieve the id from its personal section in the site? Not good idea: one query more per vote
               vote_author = vote_item.captures[0]
               vote_timestamp = case vote_item.captures[1]
                                  # Comment regex: DD/MM-HH:MM:SS
