@@ -225,6 +225,7 @@ module Wagg
           news_tags
         end
 
+
         def parse_comments(comments_item, news_urls, news_timestamps, with_votes=FALSE)
           # Find out how many pages of comments there are (at least one, the news page)
           pages_item = comments_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " pages ")]/a')

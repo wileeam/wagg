@@ -46,3 +46,4 @@ module Wagg
   end
 
 end
+

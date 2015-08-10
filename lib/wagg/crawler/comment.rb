@@ -50,9 +50,9 @@ module Wagg
       end
 
       def to_s
-        "COMMENT : %{id} - %{t}" % {id:@id, t:@title} +
+        "COMMENT : %{id} (%{n_id}) - %{a}" % {id:@id, n_id:@news_id, a:@author} +
             "\n" +
-            "    %{a} - %{ts}" % {a:@author, ts:@timestamps} +
+            "    %{ts}" % {ts:@timestamps} +
             "\n" +
             "    %{b}..." % {b:@body[0,20]} +
             "\n" +
@@ -100,6 +100,7 @@ module Wagg
               comment_vote_count
           )
 
+          puts comment
           comment
         end
 
