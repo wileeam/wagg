@@ -100,7 +100,6 @@ module Wagg
               comment_vote_count
           )
 
-          puts comment
           comment
         end
 
