@@ -49,6 +49,7 @@ module Wagg
               # Author's string name ONLY (no id...)
               # TODO: Should we retrieve the id from its personal section in the site? Not good idea: one query more per vote
               vote_author = vote_item.captures[0]
+              #vote_author = Wagg::Crawler::Crawler.author(vote_item.captures[0])
               vote_timestamp = case vote_item.captures[1]
                                  # Comment regex: DD/MM-HH:MM:SS
                                  when /\A\d{1,2}\/\d{1,2}-\d{1,2}:\d{1,2}:\d{1,2}\z/
