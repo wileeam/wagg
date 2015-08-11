@@ -43,6 +43,11 @@ module Wagg
 
     end
 
+    # Returns the list of URLs available in each page within the provided range
+    #
+    # @param begin_page_interval [Integer] the interval leftmost limit
+    # @param end_page_interval [Integer] the interval rightmost limit
+    # @return [Hash] the list of url strings indexed by
     def get_news_urls(begin_page_interval, end_page_interval)
       Wagg::Crawler.get_news_urls(begin_page_interval, end_page_interval)
     end
