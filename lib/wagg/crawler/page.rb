@@ -35,8 +35,6 @@ module Wagg
             news_comments_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
 
             news_list.push(Wagg::Crawler::News.parse(news_summary_item, news_comments_item, with_comments, with_votes))
-            puts news_list
-            exit(0)
           end
 
           news_list
