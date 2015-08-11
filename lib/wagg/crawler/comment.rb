@@ -113,7 +113,7 @@ module Wagg
               when /\Acreado:/
                 comment_timestamps["creation"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
               when /\Aeditado:/
-                comment_timestamps["edit"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
+                comment_timestamps["edition"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
             end
           end
 
