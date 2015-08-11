@@ -7,43 +7,19 @@ require 'wagg/crawler/author'
 
 module Wagg
   module Crawler
-    class Crawler
 
-      class << self
-        def page_single(item, with_comments=FALSE, with_votes=FALSE)
+        def self.page_single(item, with_comments=FALSE, with_votes=FALSE)
           Wagg::Crawler::Crawler.page_interval(item, item, with_comments, with_votes)
         end
 
-        def page_interval(begin_interval=1, end_interval=1, with_comments=FALSE, with_votes=FALSE)
+        def self.page_interval(begin_interval=1, end_interval=1, with_comments=FALSE, with_votes=FALSE)
 
           news_list = Array.new
 
           Wagg::Utils::Retriever.instance.agent('page', Wagg::Utils::Constants::RETRIEVAL_DELAY['page'])
 
-          # Retrieve first page to learn the hard limit on the end_interval that we can have
-          # TODO: Can we do better than this (tested that there are pages with more than one 'nofollow')?
-          page_one = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::PAGE_URL % {page:1}, 'main')
-          max_end_interval_item = page_one.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " pages ")]')
-          max_end_interval = Wagg::Utils::Functions.str_at_xpath(max_end_interval_item, './a[@rel="nofollow"]/text()').to_i
-
-          # parameters cannot be negative, zero nor greater than maximum
-          if 1 > begin_interval
-            nil
-          end
-          if 1 > end_interval
-            nil
-          end
-          if max_end_interval < begin_interval
-            nil
-          end
-          if max_end_interval < end_interval
-            nil
-          end
-          if begin_interval > end_interval
-            nil
-          end
-
-          for p in begin_interval..end_interval
+          filtered_begin_interval, filtered_end_interval = self.filter_page_interval_limits(begin_interval,end_interval)
+          for p in filtered_begin_interval..filtered_end_interval
             page = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::PAGE_URL % {page:p}, 'page')
             news_list.concat(Wagg::Crawler::Page.parse(page, 1, 'all', with_comments, with_votes))
           end
@@ -51,7 +27,8 @@ module Wagg
           news_list
         end
 
-        def author(name)
+        # TODO
+        def self.author(name)
           Wagg::Utils::Retriever.instance.agent('author', Wagg::Utils::Constants::RETRIEVAL_DELAY['author'])
 
           author = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::AUTHOR_URL % {name:name}, 'author')
@@ -60,7 +37,7 @@ module Wagg
           Wagg::Crawler::Author.parse(author_item)
         end
 
-        def news(url, with_comments=FALSE, with_votes=FALSE)
+        def self.news(url, with_comments=FALSE, with_votes=FALSE)
           Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
 
           news = Wagg::Utils::Retriever.instance.get(url, 'news')
@@ -71,13 +48,51 @@ module Wagg
           Wagg::Crawler::News.parse(news_summary_item, news_comments_item, with_comments, with_votes)
         end
 
-        def comment(url, with_comments=FALSE, with_votes=FALSE)
-          Wagg::Utils::Retriever.instance.agent('comment', Wagg::Utils::Constants::RETRIEVAL_DELAY['comment'])
-          self::Comment.parse(url)
-        end
-      end
+        def self.get_news_urls(begin_page_interval=1, end_page_interval='all')
 
-    end
+          news_internal_urls_list = Hash.new
+          filtered_begin_interval, filtered_end_interval = Wagg::Crawler.filter_page_interval_limits(begin_page_interval, end_page_interval)
+
+          (filtered_begin_interval..filtered_end_interval).each do |index|
+            news_internal_urls_list[index] = Page.new(index).news_urls
+          end
+
+          news_internal_urls_list
+        end
+
+        # TODO
+        def self.comment(url, with_comments=FALSE, with_votes=FALSE)
+          Wagg::Utils::Retriever.instance.agent('comment', Wagg::Utils::Constants::RETRIEVAL_DELAY['comment'])
+        end
+
+        def self.filter_page_interval_limits(begin_interval=1, end_interval='all')
+
+          # Get first page of website for reference
+          page_one = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::PAGE_URL % {page:1}, 'main')
+          # Find the DOM item containing the navigation buttons for pages
+          max_end_interval_item = page_one.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " pages ")]')
+          # Parse the maximum number of pages to a number
+          # TODO: Can we do better than this (tested that there are pages with more than one 'nofollow')?
+          max_end_interval = Wagg::Utils::Functions.str_at_xpath(max_end_interval_item, './a[@rel="nofollow"]/text()').to_i
+
+          filtered_begin_interval = 1
+          filtered_end_interval = max_end_interval
+
+          begin_interval = max_end_interval if begin_interval == 'all'
+          end_interval = max_end_interval if end_interval == 'all'
+
+          if begin_interval > end_interval
+            filtered_begin_interval = max_end_interval
+          elsif begin_interval > 0 && begin_interval <= max_end_interval
+            filtered_begin_interval = begin_interval
+            if end_interval <= max_end_interval
+              filtered_end_interval = end_interval
+            end
+          end
+
+          return filtered_begin_interval, filtered_end_interval
+        end
 
   end
+
 end

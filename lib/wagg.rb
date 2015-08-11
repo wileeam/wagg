@@ -24,26 +24,29 @@ module Wagg
     end
 
     def crawl_page_interval(begin_interval, end_interval, with_comments=FALSE, with_votes=FALSE)
-      Wagg::Crawler::Crawler::page_interval(begin_interval, end_interval, with_comments, with_votes)
+      Wagg::Crawler.page_interval(begin_interval, end_interval, with_comments, with_votes)
     end
 
     def crawl_page_single(item, with_comments=FALSE, with_votes=FALSE)
-      Wagg::Crawler::Crawler::page_single(item, with_comments, with_votes)
+      Wagg::Crawler.page_single(item, with_comments, with_votes)
     end
 
     def crawl_author(username)
-      Wagg::Crawler::Crawler::author(username)
+      Wagg::Crawler.author(username)
     end
 
     def crawl_news(url, with_comments=FALSE, with_votes=FALSE)
-      Wagg::Crawler::Crawler::news(url, with_comments, with_votes)
+      Wagg::Crawler.news(url, with_comments, with_votes)
     end
 
     def crawl_news_for_comments(item)
 
     end
 
+    def get_news_urls(begin_page_interval, end_page_interval)
+      Wagg::Crawler.get_news_urls(begin_page_interval, end_page_interval)
+    end
+
   end
 
 end
-
