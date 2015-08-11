@@ -45,8 +45,9 @@ module Wagg
         Wagg::Utils::Functions.str_at_xpath(@body, './a/strong/text()')[/(?<position>\d+)/].to_i
       end
 
-      def votes_available?
-        (Time.now.to_i - @timestamps['creation']) <= (Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME)
+      def votes_available?(news_timestamps)
+        #(Time.now.to_i - @timestamps['creation']) <= (Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME)
+        (Time.now.to_i - news_timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) && (@timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= (news_timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME)
       end
 
       def to_s
