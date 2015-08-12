@@ -20,20 +20,8 @@ module Wagg
         @vote_count = vote_count
       end
 
-      def sent_time
-        @timestamps[0]
-      end
-
-      def modified_time
-        if self.modified?
-          @timestamps[1]
-        else
-          nil
-        end
-      end
-
       def modified?
-        @timestamps.size > 1
+        @timestamps.has_key?('edition')
       end
 
       # Light consistency check of vote data
@@ -46,8 +34,13 @@ module Wagg
       end
 
       def votes_available?(news_timestamps)
-        #(Time.now.to_i - @timestamps['creation']) <= (Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME)
-        (Time.now.to_i - news_timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) && (@timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= (news_timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME)
+        (Time.now.to_i - news_timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) \
+        and \
+        (Time.now.to_i - news_timestamps['publication']) > Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME \
+        and \
+        (Time.now.to_i - @timestamps['creation'] > Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) \
+        and \
+        not self.votes.nil?
       end
 
       def to_s
@@ -80,13 +73,15 @@ module Wagg
 
           # Parse comment's voting meta data
           ballot_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-votes-info ")]')
+
           karma_item = Wagg::Utils::Functions.str_at_xpath(ballot_item, './span[@id="vk-%{id}"]/text()' % {id:comment_id})
           comment_karma = karma_item.nil? ? nil : karma_item.to_i
+
           vote_count_item = Wagg::Utils::Functions.str_at_xpath(ballot_item, './/span[@id="vc-%{id}"]/text()' % {id:comment_id})
           comment_vote_count = vote_count_item.nil? ? nil : vote_count_item.to_i
-          comment_votes = nil
 
-          if with_votes && !comment_karma.nil? && !comment_vote_count.nil? && (Time.now.to_i - news_timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) && (comment_timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= (news_timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME)
+          comment_votes = nil
+          if with_votes and not comment_karma.nil? and not comment_vote_count.nil? and (Time.now.to_i - news_timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) and ((Time.now.to_i - comment_timestamps['creation']) > Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME)
             comment_votes = Wagg::Crawler::Vote.parse_comment_votes(comment_id)
           end
 

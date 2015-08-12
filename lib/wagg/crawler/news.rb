@@ -47,7 +47,7 @@ module Wagg
       end
 
       def comments_available?
-        not self.comments.nil?
+        self.closed? and not self.comments.nil?
       end
 
       def to_s
