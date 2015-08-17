@@ -3,6 +3,7 @@
 require 'wagg/utils/retriever'
 require 'wagg/crawler/page'
 require 'wagg/crawler/author'
+require 'wagg/crawler/comment'
 
 
 module Wagg
@@ -61,8 +62,24 @@ module Wagg
         end
 
         # TODO
-        def self.comment(url, with_comments=FALSE, with_votes=FALSE)
+        def self.comment(comment_id, with_votes=FALSE)
           Wagg::Utils::Retriever.instance.agent('comment', Wagg::Utils::Constants::RETRIEVAL_DELAY['comment'])
+          Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
+
+          comment = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::COMMENT_URL % {comment:comment_id} , 'comment')
+          comments_list_item = comment.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
+          # Note that at() is the same as search().first
+          comment_item = comments_list_item.at('./div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/div')
+
+          comment_news_item = comment.search('//*[@id="newswrap"]/h3')
+          comment_news_internal_url = Wagg::Utils::Functions.str_at_xpath(comment_news_item, './a/@href')
+          comment_news = Wagg::Crawler.news(comment_news_internal_url, FALSE, FALSE)
+
+          comment_object = Wagg::Crawler::Comment.parse(comment_item, comment_news.timestamps, with_votes)
+          puts comment_object
+          exit(0)
+
+          comment_object
         end
 
         def self.filter_page_interval_limits(begin_interval=1, end_interval='all')

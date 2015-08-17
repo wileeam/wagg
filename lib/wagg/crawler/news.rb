@@ -61,11 +61,11 @@ module Wagg
             "\n" +
             "    %{k} :: %{vc} - %{c}" % {k:@karma, vc:@votes_count, c:@clicks} +
             "\n" +
-            "    Votes: %{v}" % {v:(@votes.nil? ? nil : @votes.size)} +
+            "    Votes: %{v}" % {v:(@votes.nil? ? 'EMPTY' : @votes.size)} +
             "\n" +
-            "    Tags: %{tg}" % {tg:(@tags.nil? ? nil: @tags)} +
+            "    Tags: %{tg}" % {tg:(@tags.nil? ? 'EMPTY' : @tags)} +
             "\n" +
-            "    Comments: %{co}" % {co:(@comments.nil? ? nil : @comments.size)}
+            "    Comments: %{co}" % {co:(@comments.nil? ? 'EMPTY' : @comments.size)}
       end
 
       class << self
@@ -243,7 +243,7 @@ module Wagg
 
             for c in comments_item
               comment = Wagg::Crawler::Comment.parse(c, news_timestamps, with_votes)
-              news_comments[comment.news_id] = comment
+              news_comments[comment.news_index] = comment
             end
 
             pages_counter += 1

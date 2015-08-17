@@ -39,6 +39,10 @@ module Wagg
       Wagg::Crawler.news(url, with_comments, with_votes)
     end
 
+    def crawl_comment(cid, with_votes=FALSE)
+      Wagg::Crawler.comment(cid, with_votes)
+    end
+
     def crawl_news_for_comments(item)
 
     end
