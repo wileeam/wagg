@@ -51,8 +51,10 @@ module Wagg
               vote_author = vote_item.captures[0]
               vote_timestamp = case vote_item.captures[1]
                                  # Comment regex: DD/MM-HH:MM:SS
+                                 # No TMZ provided, enforced UTC like the rest of the site
+                                 # Checked that TMZ is UTC
                                  when /\A\d{1,2}\/\d{1,2}-\d{1,2}:\d{1,2}:\d{1,2}\z/
-                                   DateTime.strptime(vote_item.captures[1],'%d/%m-%H:%M:%S').to_time.to_i
+                                   DateTime.strptime(vote_item.captures[1] + ' UTC','%d/%m-%H:%M:%S %Z').to_time.to_i
                                  # News regex: HH:MM TMZ
                                  when /\A\d{1,2}:\d{1,2}\s[A-Z]+\z/
                                    DateTime.strptime(vote_item.captures[1],'%H:%M %Z').to_time.to_i
