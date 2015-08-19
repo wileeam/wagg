@@ -1,9 +1,11 @@
 # encoding: utf-8
 
+require 'wagg/utils/configuration'
 require 'wagg/utils/retriever'
 require 'wagg/crawler/page'
 require 'wagg/crawler/author'
 require 'wagg/crawler/comment'
+
 
 
 module Wagg
@@ -30,7 +32,8 @@ module Wagg
 
         # TODO
         def self.author(name)
-          Wagg::Utils::Retriever.instance.agent('author', Wagg::Utils::Constants::RETRIEVAL_DELAY['author'])
+          #Wagg::Utils::Retriever.instance.agent('author', Wagg::Utils::Constants::RETRIEVAL_DELAY['author'])
+          Wagg::Utils::Retriever.instance.agent('author', Wagg.configuration.retrieval_delay['author'])
 
           author = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::AUTHOR_URL % {name:name}, 'author')
           author_item = author.search('//*[@id="singlewrap"]')
@@ -39,7 +42,8 @@ module Wagg
         end
 
         def self.news(url, with_comments=FALSE, with_votes=FALSE)
-          Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
+          #Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
+          Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
           news = Wagg::Utils::Retriever.instance.get(url, 'news')
           news_item = news.search('//*[@id="newswrap"]')
@@ -63,8 +67,11 @@ module Wagg
 
         # TODO
         def self.comment(comment_id, with_votes=FALSE)
-          Wagg::Utils::Retriever.instance.agent('comment', Wagg::Utils::Constants::RETRIEVAL_DELAY['comment'])
-          Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
+          #Wagg::Utils::Retriever.instance.agent('comment', Wagg::Utils::Constants::RETRIEVAL_DELAY['comment'])
+          Wagg::Utils::Retriever.instance.agent('comment', Wagg.configuration.retrieval_delay['comment'])
+          #Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
+          Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+
 
           comment = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::COMMENT_URL % {comment:comment_id} , 'comment')
           comments_list_item = comment.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
@@ -76,8 +83,6 @@ module Wagg
           comment_news = Wagg::Crawler.news(comment_news_internal_url, FALSE, FALSE)
 
           comment_object = Wagg::Crawler::Comment.parse(comment_item, comment_news.timestamps, with_votes)
-          puts comment_object
-          exit(0)
 
           comment_object
         end

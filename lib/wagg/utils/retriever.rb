@@ -5,6 +5,7 @@ require 'mechanize'
 
 require 'wagg/utils/constants'
 require 'wagg/utils/functions'
+require 'wagg'
 
 module Wagg
   module Utils
@@ -13,13 +14,17 @@ module Wagg
       include Singleton
 
       attr_reader :agents
+      attr_reader :configuration
 
       def initialize
         @agents = Hash.new
-        self.agent('default', Wagg::Utils::Constants::RETRIEVAL_DELAY['default'])
+        @configuration = Wagg.configure
+        #self.agent('default', Wagg::Utils::Constants::RETRIEVAL_DELAY['default'])
+        self.agent('default', Wagg.configuration.retrieval_delay['default'])
       end
 
-      def agent(name='default', delay=Wagg::Utils::Constants::RETRIEVAL_DELAY['default'])
+      #def agent(name='default', delay=Wagg::Utils::Constants::RETRIEVAL_DELAY['default'])
+      def agent(name='default', delay=Wagg.configuration.retrieval_delay['default'])
         if @agents[name].nil?
           custom_agent = Mechanize.new
           custom_agent.pre_connect_hooks << lambda do |custom_agent, request|

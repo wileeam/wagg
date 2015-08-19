@@ -4,12 +4,20 @@ require 'benchmark'
 
 require 'wagg/utils/constants'
 require 'wagg/utils/functions'
+require 'wagg/utils/configuration'
 
 require 'wagg/crawler/crawler'
 require 'wagg/crawler/comment'
 
 module Wagg
+
   class << self
+    attr_accessor :configuration
+
+    def configure
+      self.configuration ||= Wagg::Utils::Configuration.new
+      yield(configuration) if block_given?
+    end
 
     def crawl_interval_by_time(initial_date=(Time.now + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME), end_date=(initial_date + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME))
 
@@ -59,3 +67,4 @@ module Wagg
   end
 
 end
+

@@ -37,7 +37,8 @@ module Wagg
       def parse_urls_list
         news_internal_urls_list = Hash.new
 
-        Wagg::Utils::Retriever.instance.agent('page', Wagg::Utils::Constants::RETRIEVAL_DELAY['page'])
+        #Wagg::Utils::Retriever.instance.agent('page', Wagg::Utils::Constants::RETRIEVAL_DELAY['page'])
+        Wagg::Utils::Retriever.instance.agent('page', Wagg.configuration.retrieval_delay['page'])
 
         page = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::PAGE_URL % {page:@index}, 'page')
         news_internal_urls_list_item = page.search('.//div[contains(concat(" ", normalize-space(@class), " "), " votes ")]/a')
@@ -69,7 +70,8 @@ module Wagg
 
           # Parse list of news
           news_internal_urls_list.each do |news_url_item|
-            Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
+            #Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
+            Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
             news_url = Wagg::Utils::Constants::SITE_URL + Wagg::Utils::Functions.str_at_xpath(news_url_item, './@href')
             news = Wagg::Utils::Retriever.instance.get(news_url, 'news')
