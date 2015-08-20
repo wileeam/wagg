@@ -70,7 +70,11 @@ module Wagg
 
           comment_timestamps = Comment.parse_timestamps(meta_info_item)
 
-          comment_author = Wagg::Utils::Functions.str_at_xpath(meta_info_item, './a/@href')[/\/user\/(?<author>.+)\/commented/,1]
+          if meta_info_item.at_xpath('./a/@href').nil?
+            comment_author = Wagg::Utils::Functions.str_at_xpath(meta_info_item, './strong/text()')
+          else
+            comment_author = Wagg::Utils::Functions.str_at_xpath(meta_info_item, './a/@href')[/\/user\/(?<author>.+)\/commented/,1]
+          end
 
           # Parse comment's voting meta data
           ballot_item = meta_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " comment-votes-info ")]')
