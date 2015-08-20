@@ -59,7 +59,7 @@ module Wagg
         def parse(item, news_timestamps, with_votes=FALSE)
           # Parse comment's body data
           body_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-body ")]')
-          comment_body = body_item.search('./child::node()')
+          comment_body = Wagg::Utils::Functions.str_at_xpath(body_item,'./child::node()')
           comment_id = Wagg::Utils::Functions.str_at_xpath(body_item, './@id')[/(?<id>\d+)/].to_i
           # Comment position in news can be extracted from the body (that is the object itself should do it and not in the parsing)
           comment_news_index = Wagg::Utils::Functions.str_at_xpath(body_item, './a/strong/text()')[/(?<position>\d+)/].to_i
