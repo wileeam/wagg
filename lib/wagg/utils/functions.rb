@@ -5,7 +5,7 @@ module Wagg
     module Functions
       def self.str_at_xpath(root, xpath)
         element = root.at_xpath(xpath)
-        element.nil? ? nil : element.to_s.strip.scrub
+        element.nil? ? nil : element.to_s.scrub.strip
       end
     end
   end
