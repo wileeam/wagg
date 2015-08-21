@@ -51,8 +51,20 @@ module Wagg
       Wagg::Crawler.comment(cid, with_votes)
     end
 
+    def crawl_vote
+
+    end
+
     def crawl_news_for_comments(item)
 
+    end
+
+    def crawl_news_for_votes(nid)
+      Wagg::Crawler::Vote.parse_news_votes(nid)
+    end
+
+    def crawl_comment_for_votes(cid)
+      Wagg::Crawler::Vote.parse_comment_votes(cid)
     end
 
     # Returns the list of URLs available in each page within the provided range
@@ -67,4 +79,3 @@ module Wagg
   end
 
 end
-
