@@ -219,8 +219,10 @@ module Wagg
 
           news_tags = Array.new
           for t in tags_item
-            # TODO: Check for strip call as it is already issued in str_at_xpath helper function
-            news_tags.push(Wagg::Utils::Functions.str_at_xpath(t, './text()').strip)
+            unless Wagg::Utils::Functions.str_at_xpath(t, './text()').nil?
+              news_tags.push(Wagg::Utils::Functions.str_at_xpath(t, './text()'))
+            end
+
           end
 
           news_tags
