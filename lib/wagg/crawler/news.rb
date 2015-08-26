@@ -43,11 +43,11 @@ module Wagg
 
       #private method
       def votes_available?
-        self.closed? and not self.votes.nil? and (Time.now.to_i - self.timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME)
+        self.closed? && !self.votes.nil? && (Time.now.to_i - self.timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME)
       end
 
       def comments_available?
-        self.closed? and not self.comments.nil?
+        self.closed? && !self.comments.nil?
       end
 
       def to_s
