@@ -48,11 +48,11 @@ module Wagg
                               }
       # Retrieval defaults delays
       RETRIEVAL_DELAY = { 'default'  => 10,
-                          'page'     =>  2,
+                          'page'     =>  3,
                           'news'     =>  5,
                           'comment'  =>  4,
                           'vote'     =>  3,
-                          'author'   =>  2
+                          'author'   =>  3
                          }
       # Maximum number of pages that can be read at once (accounting for 200 news)
       MAX_PAGE_INTERVAL = 10

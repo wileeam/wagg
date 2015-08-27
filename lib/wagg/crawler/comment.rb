@@ -60,9 +60,8 @@ module Wagg
           # Parse comment's body data
           body_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-body ")]')
           comment_body = body_item.search('./child::node()').to_s.scrub.strip
-          comment_id = Wagg::Utils::Functions.str_at_xpath(body_item, './@id')[/(?<id>\d+)/].to_i
-          # Comment position in news can be extracted from the body (that is the object itself should do it and not in the parsing)
-          comment_news_index = Wagg::Utils::Functions.str_at_xpath(body_item, './a/strong/text()')[/(?<position>\d+)/].to_i
+          comment_id = Wagg::Utils::Functions.str_at_xpath(body_item, './@id')[/(?!c-)(?<id>\d+)/].to_i
+          comment_news_index = Wagg::Utils::Functions.str_at_xpath(item, './@id')[/(?!cid-)(?<id>\d+)/].to_i
 
           # Parse comment's authorship meta data
           meta_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-meta ")]')
