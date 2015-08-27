@@ -243,9 +243,9 @@ module Wagg
           begin
             if pages_total > 1
               comments_page = Wagg::Utils::Retriever.instance.get("%{url}/%{page}" % {url:news_urls['internal'], page:pages_counter}, 'news')
-              comments_item = comments_page.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/div')
+              comments_item = comments_page.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
             else
-              comments_item = comments_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/div')
+              comments_item = comments_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
             end
 
             for c in comments_item
