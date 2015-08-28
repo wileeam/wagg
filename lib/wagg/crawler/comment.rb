@@ -5,12 +5,14 @@ require 'wagg/crawler/vote'
 module Wagg
   module Crawler
     class Comment
-      attr_reader :id, :author, :news_index, :body
+      attr_reader :id, :author, :body
+      attr_reader :news_url, :news_index
       attr_reader :votes, :vote_count, :karma
       attr_reader :timestamps
 
-      def initialize(id, news_index, body, timestamps, author, karma, votes, vote_count)
+      def initialize(id, news_url, news_index, body, timestamps, author, karma, votes, vote_count)
         @id = id
+        @news_url = news_url
         @news_index = news_index
         @body = body
         @author = author
@@ -44,7 +46,9 @@ module Wagg
       end
 
       def to_s
-        "COMMENT : %{id} (%{news_index}) - %{a}" % {id:@id, news_index:@news_index, a:@author} +
+        "COMMENT : %{id} - %{a}" % {id:@id, a:@author} +
+            "\n" +
+            "    %{news_index} - %{news_url}" % {news_index:@news_index, news_url:@news_url} +
             "\n" +
             "    %{ts}" % {ts:@timestamps} +
             "\n" +
@@ -61,7 +65,11 @@ module Wagg
           body_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-body ")]')
           comment_body = body_item.search('./child::node()').to_s.scrub.strip
           comment_id = Wagg::Utils::Functions.str_at_xpath(body_item, './@id')[/(?!c-)(?<id>\d+)/].to_i
+          # Also available at unique id: //*[@id="cid-XXXXXXXX"]/a/@href
+          # TODO: Use regex to remove last element in extraced href instead of these functions...
+          comment_news_url = Wagg::Utils::Constants::SITE_URL + Wagg::Utils::Functions.str_at_xpath(body_item, './a/@href').split('/')[0...-1].join('/')
           comment_news_index = Wagg::Utils::Functions.str_at_xpath(item, './@id')[/(?!cid-)(?<id>\d+)/].to_i
+
 
           # Parse comment's authorship meta data
           meta_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-meta ")]')
@@ -91,6 +99,7 @@ module Wagg
 
           comment = Wagg::Crawler::Comment.new(
               comment_id,
+              comment_news_url,
               comment_news_index,
               comment_body,
               comment_timestamps,

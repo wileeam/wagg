@@ -65,6 +65,10 @@ module Wagg
           news_internal_urls_list
         end
 
+        def self.comment_by_id(comment_id, with_votes=FALSE)
+          Wagg::Crawler.comment(comment_id,with_votes)
+        end
+
         # TODO
         def self.comment(comment_id, with_votes=FALSE)
           #Wagg::Utils::Retriever.instance.agent('comment', Wagg::Utils::Constants::RETRIEVAL_DELAY['comment'])
@@ -72,11 +76,10 @@ module Wagg
           #Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
           Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
-
           comment = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::COMMENT_URL % {comment:comment_id} , 'comment')
           comments_list_item = comment.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
           # Note that at() is the same as search().first
-          comment_item = comments_list_item.at('./div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/div')
+          comment_item = comments_list_item.at('./div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
 
           comment_news_item = comment.search('//*[@id="newswrap"]/h3')
           comment_news_internal_url = Wagg::Utils::Functions.str_at_xpath(comment_news_item, './a/@href')
