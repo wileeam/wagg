@@ -5,7 +5,6 @@ require 'mechanize'
 
 require 'wagg/utils/constants'
 require 'wagg/utils/functions'
-require 'wagg'
 
 module Wagg
   module Utils
@@ -19,11 +18,9 @@ module Wagg
       def initialize
         @agents = Hash.new
         @configuration = Wagg.configure
-        #self.agent('default', Wagg::Utils::Constants::RETRIEVAL_DELAY['default'])
         self.agent('default', Wagg.configuration.retrieval_delay['default'])
       end
 
-      #def agent(name='default', delay=Wagg::Utils::Constants::RETRIEVAL_DELAY['default'])
       def agent(name='default', delay=Wagg.configuration.retrieval_delay['default'])
         if @agents[name].nil?
           custom_agent = Mechanize.new
@@ -37,7 +34,6 @@ module Wagg
       end
 
       def get(url, agent_name='default')
-        #@agents[agent_name].get(url)
         agent = self.agent(agent_name)
         agent.get(url)
       end

@@ -6,16 +6,12 @@ require 'wagg/crawler/comment'
 module Wagg
   module Crawler
     class News
-      attr_accessor :id, :title, :author, :description, :category, :urls, :timestamps
+      attr_reader :id, :title, :author, :description, :category, :urls, :timestamps
       attr_accessor :karma, :votes_count, :clicks
       attr_accessor :votes
-      # TODO: Remove this attribute, not reliable if news is still open for commenting
       attr_accessor :comments_count
       attr_accessor :tags
       attr_accessor :comments
-
-      # TODO: Decide whether to store the full raw news in the news after processing or not
-      attr_reader :raw
 
       def initialize(id, title, author, description, urls, timestamps, category)
         @id = id
@@ -31,12 +27,6 @@ module Wagg
         (Time.now.to_i - @timestamps['publication']) > Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME
       end
 
-      #def closed?
-      #  closed_item = @raw.search('.//div[contains(concat(" ", normalize-space(@class), " "), " menealo ")]')
-      #  span_object = closed_item.search('./span')
-      #  (!span_object.nil? && Wagg::Utils::Functions.str_at_xpath(span_object, './text()') == 'menealo') ? TRUE : FALSE
-      #end
-
       def open?
         !self.closed?
       end
@@ -45,17 +35,24 @@ module Wagg
         self.comments_available? ? @comments[index] : nil
       end
 
-      #private method
       def votes_available?
-        self.closed? && !self.votes.nil? && (Time.now.to_i - self.timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME)
+        !@votes.nil?
       end
 
       def comments_available?
-        self.closed? && !self.comments.nil?
+        !@comments.nil?
+      end
+
+      def votes_consistent?
+        self.votes_available? && @votes_count == @votes.size
+      end
+
+      def comments_consistent?
+        self.comments_available? && @comments_count == @comments.size
       end
 
       def to_s
-        "NEWS : %{id} - %{t} (%{cat})" % {id:@id, t:@title, cat:@category} +
+        "NEWS : %{id} [%{s}] - %{t} (%{cat})" % {id:@id, s:self.open? ? 'open' : 'closed', t:@title, cat:@category} +
             "\n" +
             "    %{a} - %{ts}" % {a:@author, ts:@timestamps} +
             "\n" +
@@ -65,37 +62,40 @@ module Wagg
             "\n" +
             "    %{k} :: %{vc} - %{c}" % {k:@karma, vc:@votes_count, c:@clicks} +
             "\n" +
-            "    Votes: %{v}" % {v:(@votes.nil? ? 'EMPTY' : @votes.size)} +
-            "\n" +
             "    Tags: %{tg}" % {tg:(@tags.nil? ? 'EMPTY' : @tags)} +
+            "\n" +
+            "    Votes: %{v}" % {v:(@votes.nil? ? 'EMPTY' : @votes.size)} +
             "\n" +
             "    Comments: %{co}" % {co:(@comments.nil? ? 'EMPTY' : @comments.size)}
       end
 
-      class << self
 
-        def parse(summary_item, comments_item, with_comments=FALSE, with_votes=FALSE)
+      class << self
+        def parse(url, with_comments=FALSE, with_votes=FALSE)
+          Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+
+          news_item = Wagg::Utils::Retriever.instance.get(url, 'news').search('//*[@id="newswrap"]')
+          news_summary_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
+          news_comments_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
+          news_body_item = news_summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
 
           # Parse the summary of the news (same information we would get from the front page)
           # Reason for which the tags require the body_item again...
-          news = News.parse_body(summary_item)
-
-          # Parse the remaining items of the news that we cannot get from the view of the front page but should be available
-          body_item = summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
+          news = parse_summary(news_summary_item)
 
           # Parse tags
-          news_tags = News.parse_tags(body_item)
+          news_tags = parse_tags(news_body_item)
 
-          # Parse comments (and each comment votes if available)
+          # Parse comments (and each comment's votes if available)
           news_comments = nil
           if with_comments
-            news_comments = News.parse_comments(comments_item, news.urls, news.timestamps, with_votes)
+            news_comments = parse_comments(news_comments_item, news.urls, news.timestamps, with_votes)
           end
 
           # Parse votes (if available and configured)
           news_votes = nil
           if with_votes && ((Time.now.to_i - news.timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
-            news_votes = News.parse_votes(news.id)
+            news_votes = parse_votes(news.id)
           end
 
           # Add parsed items to the news summary and return it (as a full parsed news now)
@@ -107,7 +107,7 @@ module Wagg
           news
         end
 
-        def parse_body(summary_item)
+        def parse_summary(summary_item)
           # Retrieve main news body DOM subtree
           body_item = summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
 
@@ -120,25 +120,25 @@ module Wagg
           news_description = Wagg::Utils::Functions.str_at_xpath(body_item, './text()[normalize-space()]')
 
           # Parse URLs (internal and external)
-          news_urls = News.parse_urls(body_item)
+          news_urls = parse_urls(body_item)
 
           # Retrieve main news meta-data DOM subtree
           meta_item = body_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-submitted ")]')
 
           # Parse sending and publishing timestamps
-          news_timestamps = News.parse_timestamps(meta_item)
+          news_timestamps = parse_timestamps(meta_item)
 
           # Parse author of news post (NOT the author(s) of the news itself as we don't know/care)
-          news_author = News.parse_author(meta_item)
+          news_author = parse_author(meta_item)
 
           # Retrieve details news meta-data DOM subtree
           details_item = body_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " news-details ")]')
 
           # Parse votes count: up-votes (registered and anonymous users) and down-votes (registered users)
-          news_votes_count = News.parse_votes_count(details_item,news_id)
+          news_votes_count = parse_votes_count(details_item, news_id)
 
           # Parse comments'count
-          news_comments_count = News.parse_comments_count(details_item)
+          news_comments_count = parse_comments_count(details_item)
 
           # Parse number of clicks
           clicks_item = body_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " clics ")]')
@@ -155,12 +155,13 @@ module Wagg
 
           # Create the news object (we only create it with data that won't 'change' over time)
           news = News.new(news_id, news_title, news_author, news_description, news_urls, news_timestamps, news_category)
-          # Fill the remaining details (the timestamps will tell us whether the information is final or not)
-          news.clicks = news_clicks
-          news.karma = news_karma
-          # TODO: Find an alternative to this (we should rely on the information on the webpage not this that may change)
-          news.comments_count = news_comments_count
-          news.votes_count = news_votes_count
+          # Fill the remaining details
+          if news.closed?
+            news.clicks = news_clicks
+            news.karma = news_karma
+            news.comments_count = news_comments_count
+            news.votes_count = news_votes_count
+          end
 
           # Return the object containing the summary of the news (no votes, comments, tags details)
           news
@@ -232,7 +233,6 @@ module Wagg
           news_tags
         end
 
-
         def parse_comments(comments_item, news_urls, news_timestamps, with_votes=FALSE)
           # Find out how many pages of comments there are (at least one, the news page)
           pages_item = comments_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " pages ")]/a')
@@ -249,7 +249,7 @@ module Wagg
             end
 
             for c in comments_item
-              comment = Wagg::Crawler::Comment.parse(c, news_timestamps, with_votes)
+              comment = Comment.parse(c, news_timestamps, with_votes)
               news_comments[comment.news_index] = comment
             end
 
@@ -260,11 +260,12 @@ module Wagg
         end
 
         def parse_votes(item)
-          news_votes = Wagg::Crawler::Vote.parse_news_votes(item)
+          news_votes = Vote.parse_news_votes(item)
 
           news_votes
         end
 
+        private :parse_author, :parse_urls, :parse_timestamps, :parse_votes_count, :parse_comments_count, :parse_tags, :parse_votes, :parse_comments
       end
 
     end

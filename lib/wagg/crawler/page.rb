@@ -11,7 +11,7 @@ module Wagg
 
       def initialize(index)
         @index = index
-        @news_list = parse_urls_list
+        @news_list = parse_summaries
       end
 
       # Returns the list of URLs available in the page
@@ -23,86 +23,52 @@ module Wagg
 
       def to_s
         res = "PAGE #%{index}\n" % {index:@index}
-        news_list.keys.each do |url|
-            res += "  - %{url}\n" % {url:url}
+        @news_list.keys.each do |url|
+            res += "  - %{url} " % {url:url}
+            res += @news_list[url].open? ? "(open)" : "(closed)"
+            res += "\n"
         end
 
         res
       end
 
-      def parse
-        # TODO: Basically... parse itself
-      end
+      def parse_summaries
+        Utils::Retriever.instance.agent('page', Wagg.configuration.retrieval_delay['page'])
 
-      def parse_urls_list
-        news_internal_urls_list = Hash.new
+        page_item = Utils::Retriever.instance.get(Utils::Constants::PAGE_URL % {page:@index}, 'page')
 
-        #Wagg::Utils::Retriever.instance.agent('page', Wagg::Utils::Constants::RETRIEVAL_DELAY['page'])
-        Wagg::Utils::Retriever.instance.agent('page', Wagg.configuration.retrieval_delay['page'])
+        news_summaries_list = Hash.new
 
-        page = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::PAGE_URL % {page:@index}, 'page')
-        news_internal_urls_list_item = page.search('.//div[contains(concat(" ", normalize-space(@class), " "), " votes ")]/a')
-        news_internal_urls_list_item.each do |news_internal_url_item|
-          news_internal_urls_list[Wagg::Utils::Constants::SITE_URL + Wagg::Utils::Functions.str_at_xpath(news_internal_url_item, './@href')] = nil
+        news_list_items = page_item.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
+        news_list_items.each do |news_item|
+          news = News.parse_summary(news_item)
+          news_summaries_list[news.urls['internal']] = news
         end
 
-        news_internal_urls_list
+        news_summaries_list
       end
 
-      private :parse_urls_list
+      private :parse_summaries
+
 
       class << self
-        # Parse list of news
-        def parse(item, begin_interval=1, end_interval='all', with_comments=FALSE, with_votes=FALSE)
-          news_list = Array.new
+        def parse(begin_index=1, end_index=begin_index)
+          page_begin_index, page_end_index = Utils::Functions.filter_page_interval(begin_index, end_index)
 
-          # Retrieve main list of news summaries DOM subtree
-          news_internal_urls_list = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " votes ")]/a')
-          #Wagg::Utils::Constants::SITE_URL + Wagg::Utils::Functions.str_at_xpath(internal_url_item, './a/@href')
+          page_list = Hash.new
 
-          # Figure out the interval of news items to retrieve in the page
-          if begin_interval < 1 then
-            nil
-          end
-          if end_interval != 'all' and begin_interval > end_interval
-            nil
+          (page_begin_index..page_end_index).each do |page_index|
+            page_list[page_index] = Page.new(page_index)
           end
 
-          # Parse list of news
-          news_internal_urls_list.each do |news_url_item|
-            #Wagg::Utils::Retriever.instance.agent('news', Wagg::Utils::Constants::RETRIEVAL_DELAY['news'])
-            Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
-
-            news_url = Wagg::Utils::Constants::SITE_URL + Wagg::Utils::Functions.str_at_xpath(news_url_item, './@href')
-            news = Wagg::Utils::Retriever.instance.get(news_url, 'news')
-
-            news_item = news.search('//*[@id="newswrap"]')
-            news_summary_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
-            news_comments_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
-
-            news_list.push(Wagg::Crawler::News.parse(news_summary_item, news_comments_item, with_comments, with_votes))
-          end
-
-          news_list
+          page_list
         end
 
-        # Parse list of news summaries
-        def parse_summaries(item)
-          news_list = Array.new
-
-          # Retrieve main list of news summaries DOM subtree
-          news_summary_items = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
-
-          # Parse list of news summaries
-          news_summary_items.each do |news_summary_item|
-            news_object = Wagg::Crawler::News.parse_summary(news_summary_item)
-            news_list.push(news_object)
-          end
-
-          news_list
+        def parse_interval(begin_index=1, end_index=begin_index)
+          Page.parse(begin_index, end_index)
         end
-
       end
+
     end
   end
 end

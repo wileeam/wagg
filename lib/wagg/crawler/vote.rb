@@ -5,7 +5,7 @@ require 'wagg/utils/functions'
 
 module Wagg
   module Crawler
-    class Vote #< ActiveRecord::Base
+    class Vote
       attr_reader :author, :type, :weight, :timestamp, :item
 
       def initialize(author, weight, timestamp, item, type)
@@ -21,18 +21,15 @@ module Wagg
       end
 
       class << self
-
-        def parse_news_votes(item)
-          parse(item, Wagg::Utils::Constants::NEWS_VOTES_QUERY_URL, Wagg::Utils::Constants::VOTE_NEWS)
+        def parse_news_votes(news_id)
+          parse(news_id, Wagg::Utils::Constants::NEWS_VOTES_QUERY_URL, Wagg::Utils::Constants::VOTE_NEWS)
         end
 
-        def parse_comment_votes(item)
-          parse(item, Wagg::Utils::Constants::COMMENT_VOTES_QUERY_URL, Wagg::Utils::Constants::VOTE_COMMENT)
+        def parse_comment_votes(comment_id)
+          parse(comment_id, Wagg::Utils::Constants::COMMENT_VOTES_QUERY_URL, Wagg::Utils::Constants::VOTE_COMMENT)
         end
 
-        private
         def parse(item, url_template, type)
-          #Wagg::Utils::Retriever.instance.agent('vote', Wagg::Utils::Constants::RETRIEVAL_DELAY['vote'])
           Wagg::Utils::Retriever.instance.agent('vote', Wagg.configuration.retrieval_delay['vote'])
 
           votes = Array.new
@@ -78,6 +75,8 @@ module Wagg
 
           votes
         end
+
+        private :parse
       end
     end
   end

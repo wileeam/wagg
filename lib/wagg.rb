@@ -1,13 +1,11 @@
 # encoding: utf-8
 
-require 'benchmark'
-
-require 'wagg/utils/constants'
 require 'wagg/utils/functions'
 require 'wagg/utils/configuration'
 
-require 'wagg/crawler/crawler'
-require 'wagg/crawler/comment'
+require 'wagg/crawler/page'
+require 'wagg/crawler/author'
+
 
 module Wagg
 
@@ -15,67 +13,33 @@ module Wagg
     attr_accessor :configuration
 
     def configure
-      self.configuration ||= Wagg::Utils::Configuration.new
+      self.configuration ||= Utils::Configuration.new
       yield(configuration) if block_given?
     end
 
-    def crawl_interval_by_time(initial_date=(Time.now + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME), end_date=(initial_date + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME))
-
-      # News < 30 days are always open for votes/comments
-      # News >= 30 days are closed for votes and comments
-      # Votes information is available up to 30 days after the last comment
-
-      puts initial_date
-
-      puts end_date
-
+    def page(begin_interval=1, end_interval=begin_interval)
+      Crawler::Page.parse(begin_interval,end_interval)
     end
 
-    def crawl_page_interval(begin_interval, end_interval, with_comments=FALSE, with_votes=FALSE)
-      Wagg::Crawler.page_interval(begin_interval, end_interval, with_comments, with_votes)
+    def author(name)
+      Crawler::Author.parse(name)
     end
 
-    def crawl_page_single(item, with_comments=FALSE, with_votes=FALSE)
-      Wagg::Crawler.page_single(item, with_comments, with_votes)
+    def news(news_url, with_comments=FALSE, with_votes=FALSE)
+      Crawler::News.parse(news_url, with_comments, with_votes)
     end
 
-    def crawl_author(username)
-      Wagg::Crawler.author(username)
+    def comment(comment_id, with_votes=FALSE)
+      Crawler::Comment.parse_by_id(comment_id, with_votes)
     end
 
-    def crawl_news(url, with_comments=FALSE, with_votes=FALSE)
-      Wagg::Crawler.news(url, with_comments, with_votes)
+    def votes_for_news(news_id)
+      Crawler::Vote.parse_news_votes(news_id)
     end
 
-    def crawl_comment(cid, with_votes=FALSE)
-      Wagg::Crawler.comment(cid, with_votes)
+    def votes_for_comment(comment_id)
+      Crawler::Vote.parse_comment_votes(comment_id)
     end
-
-    def crawl_vote
-
-    end
-
-    def crawl_news_for_comments(item)
-
-    end
-
-    def crawl_news_for_votes(nid)
-      Wagg::Crawler::Vote.parse_news_votes(nid)
-    end
-
-    def crawl_comment_for_votes(cid)
-      Wagg::Crawler::Vote.parse_comment_votes(cid)
-    end
-
-    # Returns the list of URLs available in each page within the provided range
-    #
-    # @param begin_page_interval [Integer] the interval leftmost limit
-    # @param end_page_interval [Integer] the interval rightmost limit
-    # @return [Hash] the list of url strings indexed by
-    def get_news_urls(begin_page_interval, end_page_interval)
-      Wagg::Crawler.get_news_urls(begin_page_interval, end_page_interval)
-    end
-
   end
 
 end

@@ -75,7 +75,7 @@ module Wagg
           meta_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-meta ")]')
           meta_info_item = meta_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " comment-info ")]')
 
-          comment_timestamps = Comment.parse_timestamps(meta_info_item)
+          comment_timestamps = parse_timestamps(meta_info_item)
 
           if meta_info_item.at_xpath('./a/@href').nil?
             comment_author = Wagg::Utils::Functions.str_at_xpath(meta_info_item, './strong/text()')
@@ -112,6 +112,46 @@ module Wagg
           comment
         end
 
+        def parse_by_id(id, with_votes=FALSE)
+          Wagg::Utils::Retriever.instance.agent('comment', Wagg.configuration.retrieval_delay['comment'])
+          Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+
+          comment = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::COMMENT_URL % {comment:id} , 'comment')
+          comments_list_item = comment.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
+          # Note that at() is the same as search().first
+          comment_item = comments_list_item.at('./div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
+
+          comment_news_item = comment.search('//*[@id="newswrap"]/h3')
+          comment_news_internal_url = Wagg::Utils::Functions.str_at_xpath(comment_news_item, './a/@href')
+          comment_news = News.parse(comment_news_internal_url, FALSE, FALSE)
+
+          comment_object = parse(comment_item, comment_news.timestamps, with_votes)
+
+          comment_object
+        end
+
+        #TODO: Complete
+        def parse_by_index(news_url, comment_index, with_votes=FALSE)
+          Wagg::Utils::Retriever.instance.agent('comment', Wagg.configuration.retrieval_delay['comment'])
+          Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+
+          comment_news = News.parse(news_url, FALSE, FALSE)
+
+          comment = Wagg::Utils::Retriever.instance.get(url, 'news')
+          puts comment.search('//*[@id="newswrap"]')
+          exit(0)
+          comments_list_item = comment.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
+          comment_item = comments_list_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]')
+          #comment_item = comments_list_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/div[@id="c-%{index}"]' % {index:comment_index})
+          comment_item.each do |c|
+            puts c
+          end
+          exit(0)
+          comment_object = parse(comment_item, comment_news.timestamps, with_votes)
+
+          comment_object
+        end
+
         def parse_timestamps(meta_item)
           timestamp_items = meta_item.search('./span')
 
@@ -127,6 +167,8 @@ module Wagg
 
           comment_timestamps
         end
+
+        private :parse_timestamps
 
       end
     end
