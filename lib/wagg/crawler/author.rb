@@ -6,7 +6,6 @@ require 'wagg/utils/functions'
 module Wagg
   module Crawler
     class Author
-
       attr_reader :id, :name
       attr_reader :creation
       attr_reader :disabled

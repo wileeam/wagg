@@ -21,14 +21,15 @@ module Wagg
         @urls = urls
         @timestamps = timestamps
         @category = category
+        @closed = (timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME) < timestamps['retrieval']
       end
 
       def closed?
-        (Time.now.to_i - @timestamps['publication']) > Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME
+        @closed
       end
 
       def open?
-        !self.closed?
+        !@closed
       end
 
       def comment(index)
@@ -74,6 +75,10 @@ module Wagg
         def parse(url, with_comments=FALSE, with_votes=FALSE)
           Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
+          # We need to track when we make the retrieval and account for the configured delay in the 'pre_connect_hooks'
+          # In theory we should consider the time when the request is executed by the server, but this is good enough
+          news_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['news']
+
           news_item = Wagg::Utils::Retriever.instance.get(url, 'news').search('//*[@id="newswrap"]')
           news_summary_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
           news_comments_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
@@ -81,14 +86,14 @@ module Wagg
 
           # Parse the summary of the news (same information we would get from the front page)
           # Reason for which the tags require the body_item again...
-          news = parse_summary(news_summary_item)
+          news = parse_summary(news_summary_item, news_retrieval_timestamp)
 
           # Parse tags
           news_tags = parse_tags(news_body_item)
 
           # Parse comments (and each comment's votes if available)
           news_comments = nil
-          if with_comments
+          if with_comments && news.closed?
             news_comments = parse_comments(news_comments_item, news.urls, news.timestamps, with_votes)
           end
 
@@ -107,7 +112,7 @@ module Wagg
           news
         end
 
-        def parse_summary(summary_item)
+        def parse_summary(summary_item, retrieval_timestamp=Time.now.to_i)
           # Retrieve main news body DOM subtree
           body_item = summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
 
@@ -127,6 +132,7 @@ module Wagg
 
           # Parse sending and publishing timestamps
           news_timestamps = parse_timestamps(meta_item)
+          news_timestamps["retrieval"] = retrieval_timestamp
 
           # Parse author of news post (NOT the author(s) of the news itself as we don't know/care)
           news_author = parse_author(meta_item)

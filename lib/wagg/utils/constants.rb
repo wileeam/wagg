@@ -52,7 +52,7 @@ module Wagg
                           'news'     =>  5,
                           'comment'  =>  4,
                           'vote'     =>  3,
-                          'author'   =>  3
+                          'author'   =>  2
                          }
       # Maximum number of pages that can be read at once (accounting for 200 news)
       MAX_PAGE_INTERVAL = 10

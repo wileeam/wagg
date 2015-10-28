@@ -1,8 +1,12 @@
 = wagg
 
-Easy to use parser for the Spanish news aggregator Menéame.
+Automatic parser for the Spanish news aggregator Menéame (http://meneame.net)
 
-Content parsed includes news descriptions, comments and votes if available
+Parsed content is fully configurable including news descriptions, comments and voting information.
+
+There is only one drawback... parsing time is proportional to the level of detail desired.
+Reason being is to avoid temporary ban of the IP parsing (on the todo is the possibility of using
+multiple IPs). Therefore, handle playing with built-in parsing delays at your own risk.
 
 == Contributing to wagg
  

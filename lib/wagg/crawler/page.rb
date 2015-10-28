@@ -35,13 +35,15 @@ module Wagg
       def parse_summaries
         Utils::Retriever.instance.agent('page', Wagg.configuration.retrieval_delay['page'])
 
+        page_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['page']
+
         page_item = Utils::Retriever.instance.get(Utils::Constants::PAGE_URL % {page:@index}, 'page')
 
         news_summaries_list = Hash.new
 
         news_list_items = page_item.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
         news_list_items.each do |news_item|
-          news = News.parse_summary(news_item)
+          news = News.parse_summary(news_item, page_retrieval_timestamp)
           news_summaries_list[news.urls['internal']] = news
         end
 
