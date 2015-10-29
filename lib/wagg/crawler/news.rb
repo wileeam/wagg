@@ -6,12 +6,12 @@ require 'wagg/crawler/comment'
 module Wagg
   module Crawler
     class News
-      attr_reader :id, :title, :author, :description, :category, :urls, :timestamps
-      attr_accessor :karma, :votes_count, :clicks
-      attr_accessor :votes
-      attr_accessor :comments_count
+      attr_reader :id, :title, :author, :description, :timestamps, :urls, :category
+      attr_accessor :karma, :votes_count, :clicks, :comments_count
       attr_accessor :tags
-      attr_accessor :comments
+
+      attr_reader :closed
+
 
       def initialize(id, title, author, description, urls, timestamps, category)
         @id = id
@@ -21,7 +21,34 @@ module Wagg
         @urls = urls
         @timestamps = timestamps
         @category = category
+
+        @karma = nil
+        @clicks = nil
+        @comments_count = nil
+        @votes_count = nil
+
+        @comments = nil
+        @votes = nil
+
         @closed = (timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME) < timestamps['retrieval']
+      end
+
+      def votes
+        if @votes.nil?
+          if self.closed?
+            @votes = Vote.parse_news_votes(@id)
+          end
+        end
+        @votes
+      end
+
+      def comments
+        if @comments.nil?
+          if self.closed?
+            @comments = parse_comments
+          end
+        end
+        @comments
       end
 
       def closed?
@@ -36,20 +63,28 @@ module Wagg
         self.comments_available? ? @comments[index] : nil
       end
 
-      def votes_available?
-        !@votes.nil?
+      def comments?
+        self.comments_available?
       end
 
       def comments_available?
-        !@comments.nil?
-      end
-
-      def votes_consistent?
-        self.votes_available? && @votes_count == @votes.size
+        !@comments.nil? && @comments.size > 0
       end
 
       def comments_consistent?
         self.comments_available? && @comments_count == @comments.size
+      end
+
+      def votes?
+        self.votes_available?
+      end
+
+      def votes_available?
+        !@votes.nil? && @votes.size > 0
+      end
+
+      def votes_consistent?
+        self.votes_available? && @votes_count == @votes.size
       end
 
       def to_s
@@ -70,9 +105,45 @@ module Wagg
             "    Comments: %{co}" % {co:(@comments.nil? ? 'EMPTY' : @comments.size)}
       end
 
+      def parse_comments
+        Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+
+        news_comments = Hash.new
+
+        comments_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['news']
+
+        news_item = Wagg::Utils::Retriever.instance.get(@urls['internal'], 'news')
+        news_comments_item = news_item.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
+
+        comments_item = news_comments_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
+        # Find out how many pages of comments there are (at least one, the news page)
+        pages_item = news_comments_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " pages ")]/a')
+        (pages_item.count != 0) ? pages_total = pages_item.count : pages_total = 1
+
+        pages_counter = 1
+        begin
+          if pages_total > 1
+            comments_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['news']
+            comments_page = Wagg::Utils::Retriever.instance.get("%{url}/%{page}" % {url:@urls['internal'], page:pages_counter}, 'news')
+            comments_item = comments_page.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
+          end
+
+          comments_item.each do |c|
+            comment = Comment.parse(c, comments_retrieval_timestamp)
+            news_comments[comment.news_index] = comment
+          end
+
+          pages_counter += 1
+        end while (pages_counter <= pages_total)
+
+        news_comments
+      end
+
+      private :parse_comments
+
 
       class << self
-        def parse(url, with_comments=FALSE, with_votes=FALSE)
+        def parse(url)
           Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
           # We need to track when we make the retrieval and account for the configured delay in the 'pre_connect_hooks'
@@ -88,25 +159,8 @@ module Wagg
           # Reason for which the tags require the body_item again...
           news = parse_summary(news_summary_item, news_retrieval_timestamp)
 
-          # Parse tags
-          news_tags = parse_tags(news_body_item)
-
-          # Parse comments (and each comment's votes if available)
-          news_comments = nil
-          if with_comments && news.closed?
-            news_comments = parse_comments(news_comments_item, news.urls, news.timestamps, with_votes)
-          end
-
-          # Parse votes (if available and configured)
-          news_votes = nil
-          if with_votes && ((Time.now.to_i - news.timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
-            news_votes = parse_votes(news.id)
-          end
-
-          # Add parsed items to the news summary and return it (as a full parsed news now)
-          news.tags = news_tags
-          news.votes = news_votes
-          news.comments = news_comments
+          # Parse and add tags to the news summary and return it (as a full parsed news now)
+          news.tags = parse_tags(news_body_item)
 
           # Return the object containing the full news (with votes, comments and tags details)
           news
@@ -160,7 +214,16 @@ module Wagg
           news_karma = Wagg::Utils::Functions.str_at_xpath(others_item, './span[@id="a-karma-%{id}"]/text()' % {id:news_id}).to_i
 
           # Create the news object (we only create it with data that won't 'change' over time)
-          news = News.new(news_id, news_title, news_author, news_description, news_urls, news_timestamps, news_category)
+          news = News.new(
+              news_id,
+              news_title,
+              news_author,
+              news_description,
+              news_urls,
+              news_timestamps,
+              news_category
+          )
+
           # Fill the remaining details
           if news.closed?
             news.clicks = news_clicks
@@ -239,39 +302,7 @@ module Wagg
           news_tags
         end
 
-        def parse_comments(comments_item, news_urls, news_timestamps, with_votes=FALSE)
-          # Find out how many pages of comments there are (at least one, the news page)
-          pages_item = comments_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " pages ")]/a')
-          (pages_item.count != 0) ? pages_total = pages_item.count : pages_total = 1
-
-          news_comments = Hash.new
-          pages_counter = 1
-          begin
-            if pages_total > 1
-              comments_page = Wagg::Utils::Retriever.instance.get("%{url}/%{page}" % {url:news_urls['internal'], page:pages_counter}, 'news')
-              comments_item = comments_page.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
-            else
-              comments_item = comments_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
-            end
-
-            for c in comments_item
-              comment = Comment.parse(c, news_timestamps, with_votes)
-              news_comments[comment.news_index] = comment
-            end
-
-            pages_counter += 1
-          end while ( pages_counter <= pages_total )
-
-          news_comments
-        end
-
-        def parse_votes(item)
-          news_votes = Vote.parse_news_votes(item)
-
-          news_votes
-        end
-
-        private :parse_author, :parse_urls, :parse_timestamps, :parse_votes_count, :parse_comments_count, :parse_tags, :parse_votes, :parse_comments
+        private :parse_author, :parse_urls, :parse_timestamps, :parse_votes_count, :parse_comments_count, :parse_tags
       end
 
     end

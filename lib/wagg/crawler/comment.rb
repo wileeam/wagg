@@ -5,44 +5,65 @@ require 'wagg/crawler/vote'
 module Wagg
   module Crawler
     class Comment
-      attr_reader :id, :author, :body
+      attr_reader :id, :author, :body, :timestamps
       attr_reader :news_url, :news_index
-      attr_reader :votes, :vote_count, :karma
-      attr_reader :timestamps
+      attr_accessor :votes, :votes_count, :karma
 
-      def initialize(id, news_url, news_index, body, timestamps, author, karma, votes, vote_count)
+      attr_reader :closed
+
+
+      def initialize(id, author, body, timestamps, news_url, news_index)
         @id = id
+        @author = author
+        @body = body
+        @timestamps = timestamps
         @news_url = news_url
         @news_index = news_index
-        @body = body
-        @author = author
-        @timestamps = timestamps
-        @karma = karma
-        @votes = votes
-        @vote_count = vote_count
+
+        @karma = nil
+        @votes_count = nil
+
+        @votes = nil
+
+        @closed = (timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) < timestamps['retrieval']
+      end
+
+      def votes
+        if @votes.nil?
+          if self.closed? && !@karma.nil? && !@votes_count.nil?
+            @votes = Vote.parse_comment_votes(@id)
+          end
+        end
+        @votes
+      end
+
+      def closed?
+        @closed
+      end
+
+      def open?
+        !@closed
       end
 
       def modified?
         @timestamps.has_key?('edition')
       end
 
-      # Light consistency check of vote data
-      def voting_consistent?
-        @votes.size == @vote_count
+      def votes?
+        self.votes_available?
+      end
+
+      # TODO: Account for case when @votes_count == 0
+      def votes_available?
+        !@votes.nil? && @votes.size > 0
+      end
+
+      def votes_consistent?
+        self.votes_available? && @votes_count == @votes.size
       end
 
       def position_in_news
         Wagg::Utils::Functions.str_at_xpath(@body, './a/strong/text()')[/(?<position>\d+)/].to_i
-      end
-
-      def votes_available?(news_timestamps)
-        (Time.now.to_i - news_timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) \
-        and \
-        (Time.now.to_i - news_timestamps['publication']) > Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME \
-        and \
-        (Time.now.to_i - @timestamps['creation'] > Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) \
-        and \
-        not self.votes.nil?
       end
 
       def to_s
@@ -54,13 +75,13 @@ module Wagg
             "\n" +
             "    %{b}..." % {b:@body[0,20]} +
             "\n" +
-            "    %{k} :: %{vc}" % {k:@karma, vc:@vote_count} +
+            "    %{k} :: %{vc}" % {k:@karma, vc:@votes_count} +
             "\n" +
             "    (%{vc}) => %{v}" % {vc:(@votes.nil? ? 'EMPTY' : @votes.size), v:@votes}
       end
 
       class << self
-        def parse(item, news_timestamps, with_votes=FALSE)
+        def parse(item, retrieval_timestamp=Time.now.to_i)
           # Parse comment's body data
           body_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-body ")]')
           comment_body = body_item.search('./child::node()').to_s.scrub.strip
@@ -70,12 +91,12 @@ module Wagg
           comment_news_url = Wagg::Utils::Constants::SITE_URL + Wagg::Utils::Functions.str_at_xpath(body_item, './a/@href').split('/')[0...-1].join('/')
           comment_news_index = Wagg::Utils::Functions.str_at_xpath(item, './@id')[/(?!cid-)(?<id>\d+)/].to_i
 
-
           # Parse comment's authorship meta data
           meta_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-meta ")]')
           meta_info_item = meta_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " comment-info ")]')
 
           comment_timestamps = parse_timestamps(meta_info_item)
+          comment_timestamps["retrieval"] = retrieval_timestamp
 
           if meta_info_item.at_xpath('./a/@href').nil?
             comment_author = Wagg::Utils::Functions.str_at_xpath(meta_info_item, './strong/text()')
@@ -90,52 +111,47 @@ module Wagg
           comment_karma = karma_item.nil? ? nil : karma_item.to_i
 
           vote_count_item = Wagg::Utils::Functions.str_at_xpath(ballot_item, './/span[@id="vc-%{id}"]/text()' % {id:comment_id})
-          comment_vote_count = vote_count_item.nil? ? nil : vote_count_item.to_i
-
-          comment_votes = nil
-          if with_votes and !comment_karma.nil? and !comment_vote_count.nil? and (Time.now.to_i - news_timestamps['publication']) <= (Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) and ((Time.now.to_i - comment_timestamps['creation']) > Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME)
-            comment_votes = Wagg::Crawler::Vote.parse_comment_votes(comment_id)
-          end
+          comment_votes_count = vote_count_item.nil? ? nil : vote_count_item.to_i
 
           comment = Wagg::Crawler::Comment.new(
               comment_id,
-              comment_news_url,
-              comment_news_index,
+              comment_author,
               comment_body,
               comment_timestamps,
-              comment_author,
-              comment_karma,
-              comment_votes,
-              comment_vote_count
+              comment_news_url,
+              comment_news_index
           )
 
+          # Fill the remaining details
+          if comment.closed?
+            comment.karma = comment_karma
+            comment.votes_count = comment_votes_count
+          end
+
+          # Return the object containing the comment details
           comment
         end
 
-        def parse_by_id(id, with_votes=FALSE)
+        def parse_by_id(id)
           Wagg::Utils::Retriever.instance.agent('comment', Wagg.configuration.retrieval_delay['comment'])
-          Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
+          comment_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['comment']
           comment = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::COMMENT_URL % {comment:id} , 'comment')
           comments_list_item = comment.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
-          # Note that at() is the same as search().first
+          # Note that at() is the same as search().first (which is what we want in fact)
           comment_item = comments_list_item.at('./div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
 
-          comment_news_item = comment.search('//*[@id="newswrap"]/h3')
-          comment_news_internal_url = Wagg::Utils::Functions.str_at_xpath(comment_news_item, './a/@href')
-          comment_news = News.parse(comment_news_internal_url, FALSE, FALSE)
-
-          comment_object = parse(comment_item, comment_news.timestamps, with_votes)
+          comment_object = parse(comment_item, comment_retrieval_timestamp)
 
           comment_object
         end
 
-        #TODO: Complete
-        def parse_by_index(news_url, comment_index, with_votes=FALSE)
+        #TODO: Complete and test
+        def parse_by_index(news_url, comment_index)
           Wagg::Utils::Retriever.instance.agent('comment', Wagg.configuration.retrieval_delay['comment'])
           Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
-          comment_news = News.parse(news_url, FALSE, FALSE)
+          comment_news = News.parse(news_url)
 
           comment = Wagg::Utils::Retriever.instance.get(url, 'news')
           puts comment.search('//*[@id="newswrap"]')
@@ -147,7 +163,7 @@ module Wagg
             puts c
           end
           exit(0)
-          comment_object = parse(comment_item, comment_news.timestamps, with_votes)
+          comment_object = parse(comment_item)
 
           comment_object
         end

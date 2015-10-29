@@ -11,6 +11,7 @@ module Wagg
       COMMENT_RE = /(?<author>\w+):\s(?<timestamp>\d{1,2}\/\d{1,2}-\d{1,2}:\d{1,2}:\d{1,2})\skarma:\s(?<weight>-?\d+)/
       COMMENT_VOTES_QUERY_URL = 'https://www.meneame.net/backend/get_c_v.php?id=%{id}&p=%{page}'
       COMMENT_URL = 'https://www.meneame.net/c/%{comment}'
+      COMMENT_CONTRIBUTION_LIFETIME = 30*24*60*60 # 30 days
       COMMENT_VOTES_LIFETIME = 30*24*60*60 # 30 days
       # News's vote regular expression and URL query templates
       # author: HH:MM TMZ valor: #
@@ -52,7 +53,7 @@ module Wagg
                           'news'     =>  5,
                           'comment'  =>  4,
                           'vote'     =>  3,
-                          'author'   =>  2
+                          'author'   =>  3
                          }
       # Maximum number of pages that can be read at once (accounting for 200 news)
       MAX_PAGE_INTERVAL = 10

@@ -25,12 +25,12 @@ module Wagg
       Crawler::Author.parse(name)
     end
 
-    def news(news_url, with_comments=FALSE, with_votes=FALSE)
-      Crawler::News.parse(news_url, with_comments, with_votes)
+    def news(news_url)
+      Crawler::News.parse(news_url)
     end
 
-    def comment(comment_id, with_votes=FALSE)
-      Crawler::Comment.parse_by_id(comment_id, with_votes)
+    def comment(comment_id)
+      Crawler::Comment.parse_by_id(comment_id)
     end
 
     def votes_for_news(news_id)
