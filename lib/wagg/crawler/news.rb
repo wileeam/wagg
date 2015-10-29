@@ -30,7 +30,7 @@ module Wagg
         @comments = nil
         @votes = nil
 
-        @closed = (timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME) >= timestamps['retrieval']
+        @closed = (timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME) <= timestamps['retrieval']
       end
 
       def votes(override_checks=FALSE)
