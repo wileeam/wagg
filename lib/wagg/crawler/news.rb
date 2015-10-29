@@ -30,11 +30,11 @@ module Wagg
         @comments = nil
         @votes = nil
 
-        @closed = (timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME) < timestamps['retrieval']
+        @closed = (timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME) >= timestamps['retrieval']
       end
 
       def votes(override_checks=FALSE)
-        if @votes.nil?
+        if self.votes_available?
           if self.closed? || override_checks
             @votes = Vote.parse_news_votes(@id)
           end
@@ -43,7 +43,7 @@ module Wagg
       end
 
       def comments(override_checks=FALSE)
-        if @comments.nil?
+        if self.comments_available?
           if self.closed? || override_checks
             @comments = parse_comments
           end
@@ -64,11 +64,11 @@ module Wagg
       end
 
       def comments?
-        self.comments_available?
+        self.comments_available? && @comments.size > 0
       end
 
       def comments_available?
-        !@comments.nil? && @comments.size > 0
+        !@comments.nil?
       end
 
       def comments_consistent?
@@ -76,15 +76,15 @@ module Wagg
       end
 
       def votes?
-        self.votes_available?
+        self.votes_available? && @votes.size > 0
       end
 
       def votes_available?
-        !@votes.nil? && @votes.size > 0
+        !@votes.nil?
       end
 
       def votes_consistent?
-        self.votes_available? && @votes_count == @votes.size
+        self.votes_available? && (@votes_count['positive'] + @votes_count['negative']) == @votes.size
       end
 
       def to_s
@@ -188,7 +188,7 @@ module Wagg
           news_timestamps = parse_timestamps(meta_item)
           news_timestamps["retrieval"] = retrieval_timestamp
 
-          # Parse author of news post (NOT the author(s) of the news itself as we don't know/care)
+          # Parse author of news post (NOT the author(s) of the news itself as we don't know/care about that)
           news_author = parse_author(meta_item)
 
           # Retrieve details news meta-data DOM subtree

@@ -5,7 +5,7 @@ module Wagg
     module Constants
       SITE_URL = 'https://www.meneame.net'
       # Author URL query template
-      AUTHOR_URL = 'https://www.meneame.net/user/%{name}'
+      AUTHOR_URL = 'https://www.meneame.net/user/%{author}'
       # Comment's vote regular expression and URL query templates
       # author: DD/MM-HH:MM:SS karma: #
       COMMENT_RE = /(?<author>\w+):\s(?<timestamp>\d{1,2}\/\d{1,2}-\d{1,2}:\d{1,2}:\d{1,2})\skarma:\s(?<weight>-?\d+)/

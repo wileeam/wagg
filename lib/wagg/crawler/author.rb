@@ -23,7 +23,7 @@ module Wagg
       def parse_author(name)
         Wagg::Utils::Retriever.instance.agent('author', Wagg.configuration.retrieval_delay['author'])
 
-        author_item = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::AUTHOR_URL % {name:name}, 'author')
+        author_item = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::AUTHOR_URL % {author:name}, 'author')
         author_table_items = author_item.search('//*[@id="singlewrap"]/fieldset/table[contains(concat(" ", normalize-space(@class), " "), " keyvalue ")]/tr')
 
         for i in author_table_items
