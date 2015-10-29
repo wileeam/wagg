@@ -17,7 +17,7 @@ module Wagg
       end
 
       def to_s
-        "%{ts} :: %{w}\t(%{a})" % {ts:Time.at(@timestamp), a:@author, w:@weight}
+        "VOTE : %{ts} (%{t}) :: %{w}\t(%{a})" % {ts:Time.at(@timestamp), t:@type, a:@author, w:@weight}
       end
 
       class << self

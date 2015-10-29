@@ -28,9 +28,9 @@ module Wagg
         @closed = (timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) < timestamps['retrieval']
       end
 
-      def votes
+      def votes(override_checks=FALSE)
         if @votes.nil?
-          if self.closed? && !@karma.nil? && !@votes_count.nil?
+          if (self.closed? || override_checks) && !@karma.nil? && !@votes_count.nil?
             @votes = Vote.parse_comment_votes(@id)
           end
         end

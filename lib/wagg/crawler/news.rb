@@ -33,18 +33,18 @@ module Wagg
         @closed = (timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME) < timestamps['retrieval']
       end
 
-      def votes
+      def votes(override_checks=FALSE)
         if @votes.nil?
-          if self.closed?
+          if self.closed? || override_checks
             @votes = Vote.parse_news_votes(@id)
           end
         end
         @votes
       end
 
-      def comments
+      def comments(override_checks=FALSE)
         if @comments.nil?
-          if self.closed?
+          if self.closed? || override_checks
             @comments = parse_comments
           end
         end
