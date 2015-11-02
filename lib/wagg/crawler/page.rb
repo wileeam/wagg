@@ -37,7 +37,7 @@ module Wagg
 
         page_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['page']
 
-        page_item = Utils::Retriever.instance.get(Utils::Constants::PAGE_URL % {page:@index}, 'page')
+        page_item = Utils::Retriever.instance.get(Utils::Constants::PAGE_PUBLISHED_URL % {page:@index}, 'page')
 
         news_summaries_list = Hash.new
 
