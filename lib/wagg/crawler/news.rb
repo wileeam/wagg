@@ -34,7 +34,7 @@ module Wagg
       end
 
       def votes(override_checks=FALSE)
-        if self.votes_available? || override_checks
+        unless self.votes_available?
           if self.closed? || override_checks
             @votes = Vote.parse_news_votes(@id)
           end
@@ -43,7 +43,7 @@ module Wagg
       end
 
       def comments(override_checks=FALSE)
-        if self.comments_available? || override_checks
+        unless self.comments_available?
           if self.closed? || override_checks
             @comments = parse_comments
           end

@@ -29,7 +29,7 @@ module Wagg
       end
 
       def votes(override_checks=FALSE)
-        if self.votes_available? || override_checks
+        unless self.votes_available?
           if (self.closed? || override_checks) && !@karma.nil? && !@votes_count.nil?
             @votes = Vote.parse_comment_votes(@id)
           end
