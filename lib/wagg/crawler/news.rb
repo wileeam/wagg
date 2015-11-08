@@ -33,21 +33,19 @@ module Wagg
         @closed = (timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME) <= timestamps['retrieval']
       end
 
-      def votes(override_checks=FALSE)
-        unless self.votes_available?
-          if self.closed? || override_checks
-            @votes = Vote.parse_news_votes(@id)
-          end
+      def votes
+        if self.votes_available?
+          @votes = Vote.parse_news_votes(@id)
         end
+
         @votes
       end
 
-      def comments(override_checks=FALSE)
-        unless self.comments_available?
-          if self.closed? || override_checks
-            @comments = parse_comments
-          end
+      def comments
+        if self.comments_available?
+          @comments = parse_comments
         end
+
         @comments
       end
 
@@ -60,31 +58,52 @@ module Wagg
       end
 
       def comment(index)
-        self.comments_available? ? @comments[index] : nil
+        if self.comments_available?
+          @comments = parse_comments
+          comment = @comments[index]
+        else
+          comment = nil
+        end
+
+        comment
       end
 
       def comments?
-        self.comments_available? && @comments.size > 0
+        self.comments_available? && @comments_count > 0
       end
 
-      def comments_available?
-        !@comments.nil?
+      def comments_available?(override_checks=FALSE)
+        self.closed? || override_checks
       end
 
       def comments_consistent?
-        self.comments_available? && @comments_count == @comments.size
+        if self.comments?
+          @comments = parse_comments
+          res = @comments_count == @comments.size
+        else
+          res = FALSE
+        end
+
+        res
       end
 
       def votes?
-        self.votes_available?
+        self.votes_available? && @votes_count > 0
       end
 
-      def votes_available?
-        !@votes.nil? && @votes.size > 0
+      def votes_available?(override_checks=FALSE)
+        self.closed? || override_checks
       end
 
       def votes_consistent?
-        self.votes_available? && (@votes_count['positive'] + @votes_count['negative']) == @votes.size
+        if self.votes?
+          @votes = Vote.parse_news_votes(@id)
+          res = (@votes_count['positive'] + @votes_count['negative']) == @votes.size
+        else
+          res = FALSE
+        end
+
+        res
       end
 
       def to_s

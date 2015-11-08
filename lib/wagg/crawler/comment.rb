@@ -28,12 +28,14 @@ module Wagg
         @closed = (timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= timestamps['retrieval']
       end
 
-      def votes(override_checks=FALSE)
-        unless self.votes_available?
-          if (self.closed? || override_checks) && !@karma.nil? && !@votes_count.nil?
+      # TODO Revise the karma.nil and votes_count.nil case
+      def votes
+        if self.votes_available?
+          if !@karma.nil? && !@votes_count.nil?
             @votes = Vote.parse_comment_votes(@id)
           end
         end
+
         @votes
       end
 
@@ -49,17 +51,26 @@ module Wagg
         @timestamps.has_key?('edition')
       end
 
+      # TODO Revise the karma.nil and votes_count.nil case
       def votes?
-        self.votes_available?
+        self.votes_available? && @votes_count > 0
       end
 
       # TODO: Account for case when @votes_count == 0
-      def votes_available?
-        !@votes.nil? && @votes.size > 0
+      def votes_available?(override_checks=FALSE)
+        self.closed? || override_checks
       end
 
+      # TODO Revise the karma.nil and votes_count.nil case
       def votes_consistent?
-        self.votes_available? && @votes_count == @votes.size
+        if self.votes?
+          @votes = Vote.parse_comment_votes(@id)
+          res = @votes_count == @votes.size
+        else
+          res = FALSE
+        end
+
+        res
       end
 
       def position_in_news
