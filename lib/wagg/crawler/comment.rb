@@ -7,7 +7,7 @@ module Wagg
     class Comment
       attr_reader :id, :author, :body, :timestamps
       attr_reader :news_url, :news_index
-      attr_accessor :votes, :votes_count, :karma
+      attr_accessor :votes_count, :karma
 
       attr_reader :closed
 
