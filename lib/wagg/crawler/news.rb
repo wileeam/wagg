@@ -76,11 +76,11 @@ module Wagg
       end
 
       def votes?
-        self.votes_available? && @votes.size > 0
+        self.votes_available?
       end
 
       def votes_available?
-        !@votes.nil?
+        !@votes.nil? && @votes.size > 0
       end
 
       def votes_consistent?

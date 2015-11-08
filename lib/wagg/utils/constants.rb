@@ -56,6 +56,11 @@ module Wagg
                           'vote'     =>  3,
                           'author'   =>  3
                          }
+      #
+      RETRIEVAL_PAGE_TYPE = { 'discarded' => FALSE,
+                              'published' => TRUE
+                            }
+
       # Maximum number of pages that can be read at once (accounting for 200 news)
       MAX_PAGE_INTERVAL = 10
     end
