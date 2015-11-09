@@ -9,7 +9,6 @@ module Wagg
       attr_reader :id, :title, :author, :description, :timestamps, :urls, :category
       attr_accessor :karma, :votes_count, :clicks, :comments_count
       attr_accessor :tags
-
       attr_reader :closed
 
 

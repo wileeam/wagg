@@ -56,12 +56,10 @@ module Wagg
         self.votes_available? && @votes_count > 0
       end
 
-      # TODO: Account for case when @votes_count == 0
       def votes_available?(override_checks=FALSE)
-        self.closed? || override_checks
+        (self.closed? || override_checks) && !@karma.nil? && !@votes_count.nil?
       end
 
-      # TODO Revise the karma.nil and votes_count.nil case
       def votes_consistent?
         if self.votes?
           @votes = Vote.parse_comment_votes(@id)
