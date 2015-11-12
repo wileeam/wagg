@@ -6,7 +6,7 @@ require 'wagg/crawler/comment'
 module Wagg
   module Crawler
     class News
-      attr_reader :id, :title, :author, :description, :timestamps, :urls, :category
+      attr_reader :id, :title, :author, :description, :timestamps, :urls, :category, :status
       attr_accessor :karma, :votes_count, :clicks, :comments_count
       attr_accessor :tags
 
@@ -342,8 +342,10 @@ module Wagg
           if news.voting_closed?
             news.clicks = news_clicks
             news.karma = news_karma
-            news.comments_count = news_comments_count
             news.votes_count = news_votes_count
+          end
+          if news.commenting_closed?
+            news.comments_count = news_comments_count
           end
 
           # Return the object containing the summary of the news (no votes, comments, tags details)
