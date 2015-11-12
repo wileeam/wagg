@@ -17,9 +17,30 @@ module Wagg
       # author: HH:MM TMZ valor: #
       # author: DD-MM-YYYY HH:MM TMZ valor: #
       NEWS_RE = /(?<author>.+):\s(?<timestamp>(\d{1,2}-\d{1,2}-\d{4}\s)?\d{1,2}:\d{1,2})\s([A-Z]+)\svalor:\s(?<weight>-?\d+)/
+      NEWS_LOG_QUERY_URL = '%{url}/log'
       NEWS_VOTES_QUERY_URL = SITE_URL + '/backend/meneos.php?id=%{id}&p=%{page}'
-      NEWS_CONTRIBUTION_LIFETIME = 30*24*60*60 # 30 days
+      NEWS_STATUS_TYPE = { 'discarded' => 'mnm-discarded',
+                           'queued' => 'mnm-queued',
+                           'published' => 'mnm-published',
+                         }
+      # TODO Wagg::Utils::Constants::NEWS_STATUS_TYPE[Wagg::Utils::Constants::NEWS_STATUS_TYPE_KILLED => 01*24*60*60
+      #      Tiempo que permanecen abiertos los comentarios en meneos descartados por abuso: 1 día
+      NEWS_CONTRIBUTION_LIFETIME = { 'discarded' => 02*24*60*60,
+                                     'queued'    => 10*24*60*60,
+                                     'published' => 30*24*60*60
+                                   }
       NEWS_VOTES_LIFETIME = 30*24*60*60 # 30 days
+      NEWS_LOG_EVENT_DISCARD = -2
+      NEWS_LOG_EVENT_DEPUBLISH = -1
+      NEWS_LOG_EVENT_NEW = 0
+      NEWS_LOG_EVENT_EDIT = 1
+      NEWS_LOG_EVENT_PUBLISH = 2
+      NEWS_LOG_EVENT = { "link_new"         => NEWS_LOG_EVENT_NEW,
+                         "link_edit"        => NEWS_LOG_EVENT_EDIT,
+                         "link_publish"     => NEWS_LOG_EVENT_PUBLISH,
+                         "link_depublished" => NEWS_LOG_EVENT_DEPUBLISH,
+                         "link_discard"     => NEWS_LOG_EVENT_DISCARD
+                       }
       # Page URL query templates
       PAGE_PUBLISHED_URL = SITE_URL + '/?page=%{page}'
       PAGE_DISCARDED_URL = PAGE_PUBLISHED_URL + '&meta=_discarded' #https://www.meneame.net/?page=%{page}&meta=_discarded
@@ -56,11 +77,6 @@ module Wagg
                           'vote'     =>  3,
                           'author'   =>  3
                          }
-      #
-      RETRIEVAL_PAGE_TYPE = { 'discarded' => FALSE,
-                              'published' => TRUE
-                            }
-
       # Maximum number of pages that can be read at once (accounting for 200 news)
       MAX_PAGE_INTERVAL = 10
     end

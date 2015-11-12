@@ -19,8 +19,9 @@ module Wagg
         @retrieval_delay['author'] = Wagg::Utils::Constants::RETRIEVAL_DELAY['author']
 
         @retrieval_page_type = Hash.new
-        @retrieval_page_type['discarded'] = Wagg::Utils::Constants::RETRIEVAL_PAGE_TYPE['discarded']
-        @retrieval_page_type['published'] = Wagg::Utils::Constants::RETRIEVAL_PAGE_TYPE['published']
+        @retrieval_page_type['discarded'] = Wagg::Utils::Constants::NEWS_STATUS_TYPE['discarded']
+        @retrieval_page_type['queued'] = Wagg::Utils::Constants::NEWS_STATUS_TYPE['queued']
+        @retrieval_page_type['published'] = Wagg::Utils::Constants::NEWS_STATUS_TYPE['published']
       end
     end
 

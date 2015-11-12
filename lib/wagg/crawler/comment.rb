@@ -9,9 +9,6 @@ module Wagg
       attr_reader :news_url, :news_index
       attr_accessor :votes_count, :karma
 
-      attr_reader :closed
-
-
       def initialize(id, author, body, timestamps, news_url, news_index)
         @id = id
         @author = author
@@ -25,13 +22,13 @@ module Wagg
 
         @votes = nil
 
-        @closed = (timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= timestamps['retrieval']
+        @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= @timestamps['retrieval']
       end
 
       # TODO Revise the karma.nil and votes_count.nil case
-      def votes
-        if self.votes_available?
-          if !@karma.nil? && !@votes_count.nil?
+      def votes(override_checks=FALSE)
+        if override_checks || self.votes_available?
+          if override_checks || (!@karma.nil? && !@votes_count.nil?)
             @votes = Vote.parse_comment_votes(@id)
           end
         end
@@ -39,16 +36,16 @@ module Wagg
         @votes
       end
 
-      def closed?
-        @closed
+      def voting_closed?
+        @votes_closed
       end
 
-      def open?
-        !@closed
+      def voting_open?
+        !@votes_closed
       end
 
       def modified?
-        @timestamps.has_key?('edition')
+        @timestamps.has_key?('edition') && !@timestamps['edition'].nil? && @timestamps['edition'] > 0
       end
 
       # TODO Revise the karma.nil and votes_count.nil case
@@ -57,7 +54,7 @@ module Wagg
       end
 
       def votes_available?(override_checks=FALSE)
-        (self.closed? || override_checks) && !@karma.nil? && !@votes_count.nil?
+        (self.voting_closed? || override_checks) && !@karma.nil? && !@votes_count.nil?
       end
 
       def votes_consistent?
@@ -132,7 +129,7 @@ module Wagg
           )
 
           # Fill the remaining details
-          if comment.closed?
+          if comment.voting_closed?
             comment.karma = comment_karma
             comment.votes_count = comment_votes_count
           end

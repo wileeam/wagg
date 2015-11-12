@@ -9,10 +9,8 @@ module Wagg
       attr_reader :id, :title, :author, :description, :timestamps, :urls, :category
       attr_accessor :karma, :votes_count, :clicks, :comments_count
       attr_accessor :tags
-      attr_reader :closed
 
-
-      def initialize(id, title, author, description, urls, timestamps, category)
+      def initialize(id, title, author, description, urls, timestamps, category, status)
         @id = id
         @title = title
         @author = author
@@ -20,40 +18,85 @@ module Wagg
         @urls = urls
         @timestamps = timestamps
         @category = category
+        @status = status
 
         @karma = nil
+        # TODO Include the following atribute in a future update method as the information changes over time.
         @clicks = nil
         @comments_count = nil
         @votes_count = nil
 
+        @log = nil
         @comments = nil
         @votes = nil
 
-        @closed = (timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME) <= timestamps['retrieval']
+        case status
+          when Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"]
+            @comments_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['discarded']) <= @timestamps['retrieval']
+            @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
+          when Wagg::Utils::Constants::NEWS_STATUS_TYPE["queued"]
+            @comments_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['queued']) <= @timestamps['retrieval']
+            @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
+          when Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
+            @comments_closed = (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published']) <= @timestamps['retrieval']
+            @votes_closed = (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
+          else
+            # We have this for safety as it costs time (one new request to the server)
+            @comments_closed = comments_contribution?
+            @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
+        end
       end
 
-      def votes
-        if self.votes_available?
+      def votes(override_checks=FALSE)
+        if override_checks || self.votes_available?
           @votes = Vote.parse_news_votes(@id)
         end
 
         @votes
       end
 
-      def comments
-        if self.comments_available?
+      def comments(override_checks=FALSE)
+        if override_checks || self.comments_available?
           @comments = parse_comments
         end
 
         @comments
       end
 
-      def closed?
-        @closed
+      def log
+        if self.log_available?
+          @log = parse_events_log
+        end
+
+        @log
       end
 
-      def open?
-        !@closed
+      def published?
+        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
+      end
+
+      def queued?
+        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE["queued"]
+      end
+
+      def discarded?
+        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"]
+      end
+
+      def commenting_closed?
+        @comments_closed
+      end
+
+      def commenting_open?
+        !@comments_closed
+      end
+
+      def voting_closed?
+        @votes_closed
+      end
+
+      def voting_open?
+        !@votes_closed
       end
 
       def comment(index)
@@ -71,8 +114,8 @@ module Wagg
         self.comments_available? && @comments_count > 0
       end
 
-      def comments_available?(override_checks=FALSE)
-        self.closed? || override_checks
+      def comments_available?
+        self.commenting_closed?
       end
 
       def comments_consistent?
@@ -91,7 +134,13 @@ module Wagg
       end
 
       def votes_available?(override_checks=FALSE)
-        self.closed? || override_checks
+        if @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
+          override_checks || (@timestamps['publication'] <= @timestamps['retrieval'] &&
+                              @timestamps['retrieval'] <= (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME["published"] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+        else
+          override_checks || (@timestamps['creation'] <= @timestamps['retrieval'] &&
+                              @timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME["published"] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+        end
       end
 
       def votes_consistent?
@@ -105,8 +154,13 @@ module Wagg
         res
       end
 
+      def log_available?
+        (@timestamps['creation'] <= @timestamps['retrieval']) &&
+        (@timestamps['retrieval'] <= (@timestamps['creation'] + 2*Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+      end
+
       def to_s
-        "NEWS : %{id} [%{s}] - %{t} (%{cat})" % {id:@id, s:self.open? ? 'open' : 'closed', t:@title, cat:@category} +
+        "NEWS : %{id} [%{s}] - %{t} (%{cat})" % {id:@id, s:self.voting_open? ? 'open' : 'closed', t:@title, cat:@category} +
             "\n" +
             "    %{a} - %{ts}" % {a:@author, ts:@timestamps} +
             "\n" +
@@ -157,7 +211,45 @@ module Wagg
         news_comments
       end
 
-      private :parse_comments
+      def parse_events_log
+        Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+
+        news_log_events = Hash.new
+
+        news_log_item = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::NEWS_LOG_QUERY_URL % {url:@urls['internal']}, 'news')
+        log_items = news_log_item.search('//*[@id="voters-container"]/div')
+        log_items.reverse_each do |log_event_item|
+          log_event_timestamp_item = log_event_item.search('./div[1]/span')
+          log_event_category_item = log_event_item.search('./div[2]')
+          log_event_type_item = log_event_item.search('./div[3]/strong')
+          log_event_user_item = log_event_item.search('./div[4]/a')
+
+          news_log_event = Hash.new
+          news_log_event["user"] = Wagg::Utils::Functions.str_at_xpath(log_event_user_item, './@href')[/\/user\/(?<author_name>.+)/,1]
+          news_log_event["type"] = Wagg::Utils::Constants::NEWS_LOG_EVENT[Wagg::Utils::Functions.str_at_xpath(log_event_type_item, './text()')]
+          news_log_event["category"] = Wagg::Utils::Functions.str_at_xpath(log_event_category_item, './text()').to_s
+
+          news_log_events[Wagg::Utils::Functions.str_at_xpath(log_event_timestamp_item, './@data-ts').to_i] = news_log_event
+        end
+
+        news_log_events
+      end
+
+      def comments_contribution?(comments_item=nil)
+        if comments_item.nil?
+          Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+
+          news_item = Wagg::Utils::Retriever.instance.get(@urls['internal'], 'news')
+          news_comments_item = news_item.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
+        else
+          news_comments_item = comments_item
+        end
+        comments_form_item = news_comments_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " commentform ")]')
+
+        comments_form_item.at_xpath('./form').nil?
+      end
+
+      private :parse_comments, :parse_events_log, :comments_contribution?
 
 
       class << self
@@ -209,6 +301,9 @@ module Wagg
           # Parse author of news post (NOT the author(s) of the news itself as we don't know/care about that)
           news_author = parse_author(meta_item)
 
+          # Retrieve status of news
+          news_status = parse_status(body_item)
+
           # Retrieve details news meta-data DOM subtree
           details_item = body_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " news-details ")]')
 
@@ -239,11 +334,12 @@ module Wagg
               news_description,
               news_urls,
               news_timestamps,
-              news_category
+              news_category,
+              news_status
           )
 
           # Fill the remaining details
-          if news.closed?
+          if news.voting_closed?
             news.clicks = news_clicks
             news.karma = news_karma
             news.comments_count = news_comments_count
@@ -320,7 +416,24 @@ module Wagg
           news_tags
         end
 
-        private :parse_author, :parse_urls, :parse_timestamps, :parse_votes_count, :parse_comments_count, :parse_tags
+        def parse_status(body_item)
+          status_main_item = body_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-shakeit ")]')
+          status_item = Wagg::Utils::Functions.str_at_xpath(status_main_item, './@class').split
+
+          if status_item.include?("mnm-queued")
+            news_status = Wagg::Utils::Constants::NEWS_STATUS_TYPE["queued"]
+          elsif status_item.include?("mnm-published")
+            news_status = Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
+          elsif status_item.include?("mnm-discarded")
+            news_status = Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"]
+          else
+            raise error
+          end
+
+          news_status
+        end
+
+        private :parse_author, :parse_urls, :parse_timestamps, :parse_votes_count, :parse_comments_count, :parse_tags, :parse_status
       end
 
     end
