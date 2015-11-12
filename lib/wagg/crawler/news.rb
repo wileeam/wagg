@@ -30,7 +30,7 @@ module Wagg
         @comments = nil
         @votes = nil
 
-        case status
+        case @status
           when Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"]
             @comments_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['discarded']) <= @timestamps['retrieval']
             @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']

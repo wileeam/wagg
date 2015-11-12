@@ -10,9 +10,9 @@ module Wagg
         element.nil? ? nil : element.to_s.scrub.strip
       end
 
-      def self.filter_page_interval(begin_interval=1, end_interval='all')
+      def self.filter_page_interval(begin_interval=1, end_interval='all', type)
         # Get first page of website for reference
-        page_one = Retriever.instance.get(Constants::PAGE_PUBLISHED_URL % {page:1}, 'main')
+        page_one = Retriever.instance.get(Constants::PAGE_URL[type] % {page:1}, 'main')
         # Find the DOM item containing the navigation buttons for pages
         max_end_interval_item = page_one.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " pages ")]')
         # Parse the maximum number of pages to a number

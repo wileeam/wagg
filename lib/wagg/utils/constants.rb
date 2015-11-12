@@ -42,8 +42,11 @@ module Wagg
                          "link_discard"     => NEWS_LOG_EVENT_DISCARD
                        }
       # Page URL query templates
-      PAGE_PUBLISHED_URL = SITE_URL + '/?page=%{page}'
-      PAGE_DISCARDED_URL = PAGE_PUBLISHED_URL + '&meta=_discarded' #https://www.meneame.net/?page=%{page}&meta=_discarded
+      PAGE_URL = { 'published' => SITE_URL + '/?page=%{page}',
+                   'queued'    => SITE_URL + '/queue?page=%{page}',
+                   'discarded' => SITE_URL + '/queue?page=%{page}&meta=_discarded'
+
+      }
       # Vote regular expression matching both votes for news and comments (Not perfect but rather accurate)
       VOTE_RE = /(?<author>.+):\s+(?<timestamp>((\d{1,2}(\/|-)\d{1,2})(-\d{4})?)?(\s|-)?\d{1,2}:\d{1,2}(:\d{1,2})?(\s[A-Z]+)?)(\s(?:valor|karma):\D*(?<weight>-?\d+))?/
       # News vote rates

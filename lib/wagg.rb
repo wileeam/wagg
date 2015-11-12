@@ -17,8 +17,8 @@ module Wagg
       yield(configuration) if block_given?
     end
 
-    def page(begin_interval=1, end_interval=begin_interval)
-      Crawler::Page.parse(begin_interval,end_interval)
+    def page(begin_interval=1, end_interval=begin_interval, type='published')
+      Crawler::Page.parse(begin_interval, end_interval, type)
     end
 
     def author(name)
