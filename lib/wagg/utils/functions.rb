@@ -10,7 +10,7 @@ module Wagg
         element.nil? ? nil : element.to_s.scrub.strip
       end
 
-      def self.filter_page_interval(begin_interval=1, end_interval='all', type)
+      def self.filter_page_interval(begin_interval=1, end_interval='all', type='published')
         # Get first page of website for reference
         page_one = Retriever.instance.get(Constants::PAGE_URL[type] % {page:1}, 'main')
         # Find the DOM item containing the navigation buttons for pages

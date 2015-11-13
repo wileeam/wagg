@@ -17,7 +17,10 @@ module Wagg
       yield(configuration) if block_given?
     end
 
-    def page(begin_interval=1, end_interval=begin_interval, type='published')
+    def page(type='published', **intervals)
+      intervals.has_key?(:begin_interval) ? begin_interval = intervals[:begin_interval] : begin_interval = 1
+      intervals.has_key?(:end_interval) ? end_interval = intervals[:end_interval] : end_interval = begin_interval
+
       Crawler::Page.parse(begin_interval, end_interval, type)
     end
 
@@ -43,3 +46,5 @@ module Wagg
   end
 
 end
+
+
