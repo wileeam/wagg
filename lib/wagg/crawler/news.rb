@@ -160,7 +160,7 @@ module Wagg
       end
 
       def to_s
-        "NEWS : %{id} [%{s}] - %{t} (%{cat})" % {id:@id, s:self.voting_open? ? 'open' : 'closed', t:@title, cat:@category} +
+        "NEWS : %{id} [%{ty}:%{vs}:%{cs}] - %{t} (%{cat})" % {id:@id, vs:self.voting_open? ? 'open' : 'closed', cs:self.commenting_open? ? 'open' : 'closed', ty:@status, t:@title, cat:@category} +
             "\n" +
             "    %{a} - %{ts}" % {a:@author, ts:@timestamps} +
             "\n" +
@@ -422,12 +422,12 @@ module Wagg
           status_main_item = body_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-shakeit ")]')
           status_item = Wagg::Utils::Functions.str_at_xpath(status_main_item, './@class').split
 
-          if status_item.include?("mnm-queued")
-            news_status = Wagg::Utils::Constants::NEWS_STATUS_TYPE["queued"]
-          elsif status_item.include?("mnm-published")
-            news_status = Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
-          elsif status_item.include?("mnm-discarded")
-            news_status = Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"]
+          if status_item.include?(Wagg::Utils::Constants::NEWS_STATUS_TYPE["queued"])
+            news_status = "queued"
+          elsif status_item.include?(Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"])
+            news_status = "published"
+          elsif status_item.include?(Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"])
+            news_status = "discarded"
           else
             raise error
           end
