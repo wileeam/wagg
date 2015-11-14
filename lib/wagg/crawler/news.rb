@@ -31,13 +31,13 @@ module Wagg
         @votes = nil
 
         case @status
-          when Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"]
+          when "discarded" #Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"]
             @comments_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['discarded']) <= @timestamps['retrieval']
             @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
-          when Wagg::Utils::Constants::NEWS_STATUS_TYPE["queued"]
+          when "queued" #Wagg::Utils::Constants::NEWS_STATUS_TYPE["queued"]
             @comments_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['queued']) <= @timestamps['retrieval']
             @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
-          when Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
+          when "published" #Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
             @comments_closed = (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published']) <= @timestamps['retrieval']
             @votes_closed = (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
           else

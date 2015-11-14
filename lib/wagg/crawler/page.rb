@@ -5,9 +5,7 @@ require 'wagg/crawler/news'
 module Wagg
   module Crawler
     class Page
-
-      attr_reader :index
-      attr_reader :news_list
+      attr_reader :index, :news_list
 
       def initialize(index, type='published')
         @index = index
@@ -38,7 +36,6 @@ module Wagg
         page_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['page']
 
         page_item = Utils::Retriever.instance.get(Utils::Constants::PAGE_URL[type] % {page:@index}, 'page')
-
         news_summaries_list = Hash.new
 
         news_list_items = page_item.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
