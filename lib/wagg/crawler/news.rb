@@ -47,16 +47,16 @@ module Wagg
         end
       end
 
-      def votes(override_checks=FALSE)
-        if override_checks || self.votes_available?
+      def votes
+        if @votes.nil? && self.votes_available?
           @votes = Vote.parse_news_votes(@id)
         end
 
         @votes
       end
 
-      def comments(override_checks=FALSE)
-        if override_checks || self.comments_available?
+      def comments
+        if @comments.nil? && self.comments_available?
           @comments = parse_comments
         end
 
@@ -64,7 +64,7 @@ module Wagg
       end
 
       def log
-        if self.log_available?
+        if @log.nil? && self.log_available?
           @log = parse_events_log
         end
 
@@ -100,14 +100,7 @@ module Wagg
       end
 
       def comment(index)
-        if self.comments_available?
-          @comments = parse_comments
-          comment = @comments[index]
-        else
-          comment = nil
-        end
-
-        comment
+        self.comments? ? self.comments[index] : nil
       end
 
       def comments?
@@ -119,39 +112,25 @@ module Wagg
       end
 
       def comments_consistent?
-        if self.comments?
-          @comments = parse_comments
-          res = @comments_count == @comments.size
-        else
-          res = FALSE
-        end
-
-        res
+        self.comments? ? @comments_count == self.comments.size : FALSE
       end
 
       def votes?
-        self.votes_available? && @votes_count > 0
+        self.votes_available? && (@votes_count['positive'] + @votes_count['negative']) > 0
       end
 
-      def votes_available?(override_checks=FALSE)
+      def votes_available?
         if @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
-          override_checks || (@timestamps['publication'] <= @timestamps['retrieval'] &&
-                              @timestamps['retrieval'] <= (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME["published"] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+          (@timestamps['publication'] <= @timestamps['retrieval']) &&
+              (@timestamps['retrieval'] <= (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME["published"] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
         else
-          override_checks || (@timestamps['creation'] <= @timestamps['retrieval'] &&
-                              @timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME["published"] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+          (@timestamps['creation'] <= @timestamps['retrieval']) &&
+              (@timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME["published"] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
         end
       end
 
       def votes_consistent?
-        if self.votes?
-          @votes = Vote.parse_news_votes(@id)
-          res = (@votes_count['positive'] + @votes_count['negative']) == @votes.size
-        else
-          res = FALSE
-        end
-
-        res
+        self.votes? ? (@votes_count['positive'] + @votes_count['negative']) == self.votes.size : FALSE
       end
 
       def log_available?

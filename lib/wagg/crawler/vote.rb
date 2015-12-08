@@ -6,13 +6,14 @@ require 'wagg/utils/functions'
 module Wagg
   module Crawler
     class Vote
-      attr_reader :author, :type, :weight, :timestamp, :item
+      attr_reader :author, :rate, :weight, :timestamp, :item, :type
 
-      def initialize(author, weight, timestamp, item, type)
+      def initialize(author, weight, rate, timestamp, item, type)
         @author = author
         @timestamp = timestamp
         @item = item
         @weight = weight
+        @rate = rate
         @type = type
       end
 
@@ -61,13 +62,17 @@ module Wagg
                                    DateTime.strptime(vote_item.captures[1],'%d-%m-%Y %H:%M %Z').to_time.to_i
                                end
               if vote_item.captures[2].nil?
-                vote_karma = Wagg::Utils::Constants::VOTE_NEWS_DOWNRATE[Wagg::Utils::Functions.str_at_xpath(v, './span/text()')]
+                # Vote is negative so we take the weight of the vote's author
+                # TODO Compare vote_timestamp with current time, if differ more than 24 hours, karma is not accurate
+                vote_karma = -Author.parse(vote_author).karma
+                vote_rate = Wagg::Utils::Constants::VOTE_NEWS_DOWNRATE[Wagg::Utils::Functions.str_at_xpath(v, './span/text()')]
               else
                 vote_karma = vote_item.captures[2].to_i
+                vote_rate  = Wagg::Utils::Constants::VOTE_NEWS_UPRATE
               end
               vote_type = type
 
-              vote = Vote.new(vote_author, vote_karma, vote_timestamp, item, vote_type)
+              vote = Vote.new(vote_author, vote_karma, vote_rate, vote_timestamp, item, vote_type)
               votes.unshift(vote)
             end
             p += 1

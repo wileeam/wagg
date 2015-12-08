@@ -5,7 +5,7 @@ require 'wagg/crawler/vote'
 module Wagg
   module Crawler
     class Comment
-      attr_reader :id, :author, :body, :timestamps
+      attr_reader :id, :author, :timestamps
       attr_reader :news_url, :news_index
       attr_accessor :votes_count, :karma
 
@@ -25,12 +25,16 @@ module Wagg
         @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= @timestamps['retrieval']
       end
 
-      # TODO Revise the karma.nil and votes_count.nil case
-      def votes(override_checks=FALSE)
-        if override_checks || self.votes_available?
-          if override_checks || (!@karma.nil? && !@votes_count.nil?)
+      def body
+        @body.to_s.scrub.strip
+      end
+
+      def votes
+        if @votes.nil? && self.votes_available?
+          # TODO Revise the karma.nil and votes_count.nil case
+          #if !@karma.nil? && !@votes_count.nil?
             @votes = Vote.parse_comment_votes(@id)
-          end
+          #end
         end
 
         @votes
@@ -48,24 +52,30 @@ module Wagg
         @timestamps.has_key?('edition') && !@timestamps['edition'].nil? && @timestamps['edition'] > 0
       end
 
-      # TODO Revise the karma.nil and votes_count.nil case
       def votes?
+        # TODO Revise the karma.nil and votes_count.nil case
+        #self.votes_available? && @votes.size > 0
         self.votes_available? && @votes_count > 0
       end
 
-      def votes_available?(override_checks=FALSE)
-        (self.voting_closed? || override_checks) && !@karma.nil? && !@votes_count.nil?
+      def votes_available?
+        (@timestamps['creation'] <= @timestamps['retrieval']) &&
+            (@timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME + Wagg::Utils::Constants::COMMENT_CONTRIBUTION_LIFETIME))
       end
 
       def votes_consistent?
-        if self.votes?
-          @votes = Vote.parse_comment_votes(@id)
-          res = @votes_count == @votes.size
-        else
-          res = FALSE
-        end
+        self.votes? ? @votes_count == self.votes.size : FALSE
+      end
 
-        res
+      def parent_index
+        referred_comments_list = @body.search('.//a[contains(concat(" ", normalize-space(@class), " "), " tooltip ")]')
+        @body.each { |x| puts x.class }
+        puts referred_comments_list
+        #referred_comments_list = @body.search('//a[matches(@class, "tooltip c:%{cid}-\d+"]' % {cid: @id})
+        parent_comment_item = referred_comments_list.first
+        parent_comment_index = Wagg::Utils::Functions.str_at_xpath(@body, './a/text()').to_i
+
+        parent_comment_index
       end
 
       def position_in_news
@@ -90,7 +100,8 @@ module Wagg
         def parse(item, retrieval_timestamp=Time.now.to_i)
           # Parse comment's body data
           body_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-body ")]')
-          comment_body = body_item.search('./child::node()').to_s.scrub.strip
+          #comment_body = body_item.search('./child::node()').to_s.scrub.strip
+          comment_body = body_item.search('./child::node()')
           comment_id = Wagg::Utils::Functions.str_at_xpath(body_item, './@id')[/(?!c-)(?<id>\d+)/].to_i
           # Also available at unique id: //*[@id="cid-XXXXXXXX"]/a/@href
           # TODO: Use regex to remove last element in extraced href instead of these functions...

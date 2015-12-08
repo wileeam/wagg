@@ -3,10 +3,14 @@
 module Wagg
   module Crawler
     class Tag
-      attr_reader :tag
+      attr_reader :name
 
-      def initialize(tag)
-        @tag = tag
+      def initialize(name)
+        @name = name
+      end
+
+      def to_s
+        "TAG : %{n}" % {n:@name}
       end
 
     end

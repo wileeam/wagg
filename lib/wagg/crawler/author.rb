@@ -6,7 +6,7 @@ require 'wagg/utils/functions'
 module Wagg
   module Crawler
     class Author
-      attr_reader :id, :name
+      attr_reader :id, :name, :karma
       attr_reader :creation
       attr_reader :disabled
 
@@ -17,7 +17,7 @@ module Wagg
       end
 
       def to_s
-        "AUTHOR : %{id} - %{n} (%{c})" % {id:@id, n:@name, c:@creation} + "\n"
+        "AUTHOR : %{n} :: %{id} - (%{k}) (%{c})" % {id:@id, k:@karma, n:@name, c:Time.at(@creation)}
       end
 
       def parse_author(name)
@@ -34,6 +34,8 @@ module Wagg
               if Wagg::Utils::Functions.str_at_xpath(i, './td/text()').eql?('disabled')
                 @disabled = TRUE
               end
+            when /\Akarma:/
+              @karma = Wagg::Utils::Functions.str_at_xpath(i, './td/text()').to_f
           end
         end
 
@@ -42,7 +44,6 @@ module Wagg
       end
 
       private :parse_author
-
 
       class << self
         def parse(name)
