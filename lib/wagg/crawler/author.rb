@@ -24,12 +24,25 @@ module Wagg
         Wagg::Utils::Retriever.instance.agent('author', Wagg.configuration.retrieval_delay['author'])
 
         author_item = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::AUTHOR_URL % {author:name}, 'author')
+
+        author_retrieval_timestamp = Time.now.utc + Wagg.configuration.retrieval_delay['author']
+
         author_table_items = author_item.search('//*[@id="singlewrap"]/fieldset/table[contains(concat(" ", normalize-space(@class), " "), " keyvalue ")]/tr')
 
         for i in author_table_items
           case Wagg::Utils::Functions.str_at_xpath(i, './th/text()')
             when /\Adesde:/
-              @creation = DateTime.strptime(Wagg::Utils::Functions.str_at_xpath(i, './td/text()'),'%d-%m-%Y %H:%M %Z').to_time.to_i
+              author_date = Wagg::Utils::Functions.str_at_xpath(i, './td/text()')
+              if author_date.match(/\A\d{1,2}:\d{1,2}\s[A-Z]+\z/)
+                author_date = author_retrieval_timestamp.day.to_s +
+                    '-' +
+                    author_retrieval_timestamp.month.to_s +
+                    '-' +
+                    author_retrieval_timestamp.year.to_s +
+                    ' ' +
+                    author_date
+              end
+              @creation = DateTime.strptime(author_date,'%d-%m-%Y %H:%M %Z').to_time.to_i
             when /\Anombre:/
               if Wagg::Utils::Functions.str_at_xpath(i, './td/text()').eql?('disabled')
                 @disabled = TRUE

@@ -39,7 +39,7 @@ module Wagg
           begin
             # Retrieve subpage with votes
             votes_subpage = Wagg::Utils::Retriever.instance.get(url_template % {id:item, page:p}, 'vote')
-            #
+
             votes_retrieval_timestamp = Time.now.utc + Wagg.configuration.retrieval_delay['vote']
 
             # Find all votes: 'a' tags in DOM tree
