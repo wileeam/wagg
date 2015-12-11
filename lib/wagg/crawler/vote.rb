@@ -78,9 +78,6 @@ module Wagg
                                          '-' +
                                          votes_retrieval_timestamp.year.to_s
                                    else
-                                     puts vote_item
-                                     puts vote_item.captures[1][/(\d{2}:\d{2})\s[A-Z]{3}/]
-                                     puts votes_retrieval_timestamp
                                      votes_retrieval_timestamp_adjusted = votes_retrieval_timestamp - 24*60*60
                                      vote_date_string =
                                          votes_retrieval_timestamp_adjusted.day.to_s +
