@@ -53,6 +53,8 @@ module Wagg
       VOTE_NEWS             =  0
       VOTE_COMMENT          =  1
       VOTE_COMMENT_LIFETIME = 30*24*60*60 # 30 days
+      VOTE_COMMENT_UPRATE   =  0
+      VOTE_COMMENT_DOWNRATE = -1
       VOTE_NEWS_UPRATE      =  0
       VOTE_NEWS_DOWNRATE_IR = -1
       VOTE_NEWS_DOWNRATE_AN = -2
@@ -74,7 +76,7 @@ module Wagg
                                 "copia/plagio"    => VOTE_NEWS_DOWNRATE_CP
                               }
 
-      # Retrieval defaults delays
+      # Retrieval defaults delays (in seconds)
       RETRIEVAL_DELAY = { 'default'  => 10,
                           'page'     =>  3,
                           'news'     =>  5,

@@ -378,9 +378,7 @@ module Wagg
         end
 
         def parse_comments_count(details_item)
-          news_comments_count = Wagg::Utils::Functions.str_at_xpath(details_item, './span/a/span[contains(concat(" ", normalize-space(@class), " "), " counter ")]/text()').to_i
-
-          news_comments_count
+          Wagg::Utils::Functions.str_at_xpath(details_item, './span/a/span[contains(concat(" ", normalize-space(@class), " "), " counter ")]/text()').to_i
         end
 
         def parse_tags(body_item)
