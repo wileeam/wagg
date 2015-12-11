@@ -48,7 +48,7 @@ module Wagg
 
       }
       # Vote regular expression matching both votes for news and comments (Not perfect but rather accurate)
-      VOTE_RE = /(?<author>.+):\s+(?<timestamp>((\d{1,2}(\/|-)\d{1,2})(-\d{4})?)?(\s|-)?\d{1,2}:\d{1,2}(:\d{1,2})?(\s[A-Z]+)?)(\s(?:valor|karma):\D*(?<weight>-?\d+))?/
+      VOTE_RE = /(?<author>.+):\s+(?<timestamp>((\d{1,2}(\/|-)\d{1,2})(-\d{4})?)?(\s|-)?\d{1,2}:\d{1,2}(:\d{1,2})?(\s[A-Z]+)?)(\s(?:valor|karma):\s+(?<weight>-?\d+))?/
       # News vote rates
       VOTE_NEWS             =  0
       VOTE_COMMENT          =  1
