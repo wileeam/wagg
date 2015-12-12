@@ -5,7 +5,7 @@ require 'wagg/crawler/vote'
 module Wagg
   module Crawler
     class Comment
-      attr_reader :id, :author, :timestamps
+      attr_reader :id, :author, :timestamps, :body
       attr_reader :news_url, :news_index
       attr_accessor :votes_count, :karma
 
@@ -23,10 +23,6 @@ module Wagg
         @votes = nil
 
         @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= @timestamps['retrieval']
-      end
-
-      def body
-        @body.to_s.scrub.strip
       end
 
       def votes
@@ -101,7 +97,7 @@ module Wagg
           # Parse comment's body data
           body_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-body ")]')
           #comment_body = body_item.search('./child::node()').to_s.scrub.strip
-          comment_body = body_item.search('./child::node()')
+          comment_body = body_item.inner_html.strip
           comment_id = Wagg::Utils::Functions.str_at_xpath(body_item, './@id')[/(?!c-)(?<id>\d+)/].to_i
           # Also available at unique id: //*[@id="cid-XXXXXXXX"]/a/@href
           # TODO: Use regex to remove last element in extraced href instead of these functions...
