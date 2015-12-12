@@ -318,16 +318,12 @@ module Wagg
           )
 
           # Fill the remaining details
-          if news.voting_closed?
-            news.clicks = news_clicks
-            news.karma = news_karma
-            news.votes_count = news_votes_count
-          end
-          if news.commenting_closed?
-            news.comments_count = news_comments_count
-          end
+          news.clicks = news_clicks
+          news.karma = news_karma
+          news.votes_count = news_votes_count
+          news.comments_count = news_comments_count
 
-          # Return the object containing the summary of the news (no votes, comments, tags details)
+          # Return the object containing the summary of the news (no votes, no comments, no tags details)
           news
         end
 
