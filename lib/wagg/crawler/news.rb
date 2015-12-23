@@ -157,7 +157,7 @@ module Wagg
       end
 
       def parse_comments
-        Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+        # Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
         news_comments = Hash.new
 
@@ -191,7 +191,7 @@ module Wagg
       end
 
       def parse_events_log
-        Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+        # Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
         news_log_events = Hash.new
 
@@ -216,7 +216,7 @@ module Wagg
 
       def comments_contribution?(comments_item=nil)
         if comments_item.nil?
-          Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+          # Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
           news_item = Wagg::Utils::Retriever.instance.get(@urls['internal'], 'news')
           news_comments_item = news_item.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
@@ -233,7 +233,7 @@ module Wagg
 
       class << self
         def parse(url)
-          Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
+          # Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
 
           # We need to track when we make the retrieval and account for the configured delay in the 'pre_connect_hooks'
           # In theory we should consider the time when the request is executed by the server, but this is good enough

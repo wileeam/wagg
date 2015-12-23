@@ -21,7 +21,7 @@ module Wagg
       end
 
       def parse_author(name)
-        Wagg::Utils::Retriever.instance.agent('author', Wagg.configuration.retrieval_delay['author'])
+        # Wagg::Utils::Retriever.instance.agent('author', Wagg.configuration.retrieval_delay['author'])
 
         author_item = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::AUTHOR_URL % {author:name}, 'author')
 

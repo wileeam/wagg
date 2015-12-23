@@ -10,13 +10,22 @@ require 'wagg/crawler/author'
 module Wagg
 
   class << self
-    attr_accessor :configuration
+    attr_writer :configuration
+  end
 
-    def configure
-      self.configuration ||= Utils::Configuration.new
-      yield(configuration) if block_given?
-    end
+  def self.configuration
+    @configuration ||= Wagg::Utils::Configuration.new
+  end
 
+  def self.reset
+    @configuration = Wagg::Utils::Configuration.new
+  end
+
+  def self.configure
+    yield(configuration) if block_given?
+  end
+
+  class << self
     def page(type='published', **intervals)
       intervals.has_key?(:begin_interval) ? begin_interval = intervals[:begin_interval] : begin_interval = 1
       intervals.has_key?(:end_interval) ? end_interval = intervals[:end_interval] : end_interval = begin_interval
@@ -46,5 +55,3 @@ module Wagg
   end
 
 end
-
-

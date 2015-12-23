@@ -4,6 +4,7 @@ module Wagg
   module Utils
     module Constants
       SITE_URL = 'https://www.meneame.net'
+      LOGIN_URL = SITE_URL + '/login'
       # Author URL query template
       AUTHOR_URL = SITE_URL + '/user/%{author}'
       # Comment's vote regular expression and URL query templates
