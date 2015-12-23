@@ -146,8 +146,6 @@ module Wagg
         end
 
         def parse_by_id(id)
-          # Wagg::Utils::Retriever.instance.agent('comment', Wagg.configuration.retrieval_delay['comment'])
-
           comment_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['comment']
           comment = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::COMMENT_URL % {comment:id} , 'comment')
           comments_list_item = comment.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
@@ -161,9 +159,6 @@ module Wagg
 
         #TODO: Complete and test
         def parse_by_index(news_url, comment_index)
-          # Wagg::Utils::Retriever.instance.agent('comment', Wagg.configuration.retrieval_delay['comment'])
-          # Wagg::Utils::Retriever.instance.agent('news', Wagg.configuration.retrieval_delay['news'])
-
           comment_news = News.parse(news_url)
 
           comment = Wagg::Utils::Retriever.instance.get(url, 'news')

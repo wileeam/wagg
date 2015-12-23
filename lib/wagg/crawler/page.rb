@@ -31,8 +31,6 @@ module Wagg
       end
 
       def parse_summaries(type='published')
-        # Wagg::Utils::Retriever.instance.agent('page', Wagg.configuration.retrieval_delay['page'])
-
         page_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['page']
 
         page_item = Utils::Retriever.instance.get(Utils::Constants::PAGE_URL[type] % {page:@index}, 'page')

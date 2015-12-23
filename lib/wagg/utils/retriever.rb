@@ -75,8 +75,6 @@ module Wagg
       end
 
       def login(user=nil, password=nil)
-        puts 'logging in'
-        puts @agents['default'].cookie_jar.jar
         login_page = self.get(Wagg::Utils::Constants::LOGIN_URL)
         login_form_item = login_page.form_with(:action => Wagg::Utils::Constants::LOGIN_URL)
 
@@ -87,7 +85,6 @@ module Wagg
         password_form_item.value = password
 
         login_form_item.submit
-        puts @agents['default'].cookie_jar.jar
       end
 
       private :login
