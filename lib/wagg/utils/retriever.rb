@@ -22,7 +22,7 @@ module Wagg
         self.agent('default', Wagg.configuration.retrieval_delay['default'])
       end
 
-      def agent(name='default', delay=Wagg.configuration.retrieval_delay[name])
+      def agent(name='default', delay=Wagg.configuration.retrieval_delay['default'])
 
         if @agents[name].nil?
           custom_agent = Mechanize.new
