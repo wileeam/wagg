@@ -136,10 +136,8 @@ module Wagg
           )
 
           # Fill the remaining details
-          if comment.voting_closed?
-            comment.karma = comment_karma
-            comment.votes_count = comment_votes_count
-          end
+          comment.karma = comment_karma
+          comment.votes_count = comment_votes_count
 
           # Return the object containing the comment details
           comment
