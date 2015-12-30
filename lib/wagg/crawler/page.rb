@@ -6,10 +6,12 @@ module Wagg
   module Crawler
     class Page
       attr_reader :index, :news_list
+      attr_reader :min_timestamp, :max_timestamp
 
       def initialize(index, type='published')
         @index = index
         @news_list = parse_summaries(type)
+        @min_timestamp, @max_timestamp = parse_timestamps
       end
 
       # Returns the list of URLs available in the page
@@ -20,11 +22,10 @@ module Wagg
       end
 
       def to_s
-        res = "PAGE #%{index}\n" % {index:@index}
+        res = "PAGE #%{index} :: (%{min} || %{max})\n" % {index:@index, min:Time.at(@min_timestamp), max:Time.at(@max_timestamp)}
         @news_list.keys.each do |url|
             res += "  - %{url} " % {url:url}
-            res += @news_list[url].open? ? "(open)" : "(closed)"
-            res += "\n"
+            res += "(%{voting}|%{commenting})\n" % {voting:@news_list[url].voting_open?.to_s, commenting:@news_list[url].commenting_open?.to_s}
         end
 
         res
@@ -45,7 +46,18 @@ module Wagg
         news_summaries_list
       end
 
-      private :parse_summaries
+      def parse_timestamps
+        news_timestamps_list = Array.new
+
+        @news_list.each do |url, news|
+          news_timestamps_list.push(news.timestamps['creation'])
+        end
+        news_timestamps_list.sort!
+
+        return news_timestamps_list.first, news_timestamps_list.last
+      end
+
+      private :parse_summaries, :parse_timestamps
 
 
       class << self
