@@ -108,6 +108,7 @@ module Wagg
       end
 
       def comments_available?
+<<<<<<< 9ca368d1ae28acc2679d48d7117a4baefdaa839b
         if @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['published']
           (@timestamps['publication'] <= @timestamps['retrieval']) &&
               (@timestamps['retrieval'] <= (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
@@ -118,6 +119,9 @@ module Wagg
             (@timestamps['creation'] <= @timestamps['retrieval']) &&
                 (@timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['discarded'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
         end
+=======
+        TRUE # Comments are always available
+>>>>>>> [FIX] Comments are always available
       end
 
       def comments_consistent?
@@ -132,7 +136,11 @@ module Wagg
         if @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['published']
           (@timestamps['publication'] <= @timestamps['retrieval']) &&
               (@timestamps['retrieval'] <= (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+<<<<<<< 9ca368d1ae28acc2679d48d7117a4baefdaa839b
         else
+=======
+        else # @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['queued'] || @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['discarded']
+>>>>>>> [FIX] Comments are always available
           (@timestamps['creation'] <= @timestamps['retrieval']) &&
               (@timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
         end
