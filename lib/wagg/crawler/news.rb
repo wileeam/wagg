@@ -72,15 +72,15 @@ module Wagg
       end
 
       def published?
-        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
+        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['published']
       end
 
       def queued?
-        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE["queued"]
+        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['queued']
       end
 
       def discarded?
-        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"]
+        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['discarded']
       end
 
       def commenting_closed?
@@ -108,7 +108,16 @@ module Wagg
       end
 
       def comments_available?
-        self.commenting_closed?
+        if @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['published']
+          (@timestamps['publication'] <= @timestamps['retrieval']) &&
+              (@timestamps['retrieval'] <= (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+        elsif @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['queued']
+          (@timestamps['creation'] <= @timestamps['retrieval']) &&
+              (@timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['queued'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+          else # @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['discarded']
+            (@timestamps['creation'] <= @timestamps['retrieval']) &&
+                (@timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['discarded'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+        end
       end
 
       def comments_consistent?
@@ -120,12 +129,12 @@ module Wagg
       end
 
       def votes_available?
-        if @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
+        if @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['published']
           (@timestamps['publication'] <= @timestamps['retrieval']) &&
-              (@timestamps['retrieval'] <= (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME["published"] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+              (@timestamps['retrieval'] <= (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
         else
           (@timestamps['creation'] <= @timestamps['retrieval']) &&
-              (@timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME["published"] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
+              (@timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
         end
       end
 
