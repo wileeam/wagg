@@ -87,6 +87,8 @@ module Wagg
                          }
       # Maximum number of pages that can be read at once (accounting for 200 news)
       MAX_PAGE_INTERVAL = 10
+      # Cut-off time of users' karma site-wide recalculation (Every day at around 3:45 am CET)
+      AUTHOR_WEIGHT_CUTOFF_TIME = '03:45:00 CET'
     end
   end
 end

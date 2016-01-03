@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
   s.required_rubygems_version = Gem::Requirement.new("> 1.3.1") if s.respond_to? :required_rubygems_version=
   s.require_paths = ["lib"]
   s.authors = ["Guillermo Rodriguez Cano"]
-  s.date = "2015-12-28"
+  s.date = "2016-01-03"
   s.description = "This is a nice Meneame crawler"
   s.email = "wschutz@gmail.com"
   s.extra_rdoc_files = [

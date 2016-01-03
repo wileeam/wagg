@@ -61,14 +61,8 @@ module Wagg
                                  when /\A\d{1,2}:\d{1,2}\s[A-Z]+\z/
                                    #DateTime.strptime(vote_item.captures[1],'%H:%M %Z').to_time.to_i
                                    # Check if we are on the same (===) day
-                                   if votes_retrieval_timestamp.to_date === (votes_retrieval_timestamp - (20*60*60)).to_date
-                                     vote_date_string =
-                                         votes_retrieval_timestamp.day.to_s +
-                                         '-' +
-                                         votes_retrieval_timestamp.month.to_s +
-                                         '-' +
-                                         votes_retrieval_timestamp.year.to_s
-                                   elsif vote_item.captures[1][/(\d{2}:\d{2})/] <= votes_retrieval_timestamp.strftime('%H:%M')
+                                   if votes_retrieval_timestamp.to_date === (votes_retrieval_timestamp - (20*60*60)).to_date ||
+                                     vote_item.captures[1][/(\d{2}:\d{2})/] <= votes_retrieval_timestamp.strftime('%H:%M')
                                      vote_date_string =
                                          votes_retrieval_timestamp.day.to_s +
                                          '-' +
@@ -92,8 +86,28 @@ module Wagg
                                end
               if vote_item.captures[2].nil?
                 # Vote is negative so we take the weight of the vote's author
-                # TODO Compare vote_timestamp with current time, if differ more than 24 hours, karma is not accurate
-                vote_karma = -1 * Author.parse(vote_author).karma.round
+                author_cutoff_timestamp = DateTime.strptime(
+                    votes_retrieval_timestamp.day.to_s +
+                        '-' +
+                        votes_retrieval_timestamp.month.to_s +
+                        '-' +
+                        votes_retrieval_timestamp.year.to_s +
+                        ' ' +
+                        Wagg::Utils::Constants::AUTHOR_WEIGHT_CUTOFF_TIME,
+                    '%d-%m-%Y %H:%M:%S %Z').to_time.to_i
+                # TODO Document this mess...
+                # In short: either vote and retrieval timestamps are on same day (and both before/after cut-off time)
+                #           or vote timestamp is one day before retrieval's one and then vote happens after its cut-off
+                #           while retrieval's happens before its cut-off
+                if (Time.at(vote_timestamp).to_date === votes_retrieval_timestamp.to_date &&
+                    ((vote_timestamp <= author_cutoff_timestamp && votes_retrieval_timestamp.to_i <= author_cutoff_timestamp) ||
+                        (vote_timestamp > author_cutoff_timestamp && votes_retrieval_timestamp.to_i > author_cutoff_timestamp))) ||
+                    (Time.at(vote_timestamp + 24*60*60).to_date === votes_retrieval_timestamp.to_date &&
+                    Time.at(vote_timestamp) > (author_cutoff_timestamp - 24*60*60) && votes_retrieval_timestamp.to_i <= author_cutoff_timestamp)
+                  vote_karma = -1 * Author.parse(vote_author).karma.round
+                else
+                  vote_karma = nil
+                end
                 vote_rate = Wagg::Utils::Constants::VOTE_NEWS_DOWNRATE[Wagg::Utils::Functions.str_at_xpath(v, './span/text()')]
               else
                 vote_karma = vote_item.captures[2].to_i
