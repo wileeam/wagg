@@ -102,8 +102,8 @@ module Wagg
                 if (Time.at(vote_timestamp).to_date === votes_retrieval_timestamp.to_date &&
                     ((vote_timestamp <= author_cutoff_timestamp && votes_retrieval_timestamp.to_i <= author_cutoff_timestamp) ||
                         (vote_timestamp > author_cutoff_timestamp && votes_retrieval_timestamp.to_i > author_cutoff_timestamp))) ||
-                    (Time.at(vote_timestamp + 24*60*60).to_date === votes_retrieval_timestamp.to_date &&
-                    Time.at(vote_timestamp) > (author_cutoff_timestamp - 24*60*60) && votes_retrieval_timestamp.to_i <= author_cutoff_timestamp)
+                    (Time.at(vote_timestamp + (24*60*60)).to_date === votes_retrieval_timestamp.to_date &&
+                    Time.at(vote_timestamp) > Time.at(author_cutoff_timestamp - (24*60*60)) && votes_retrieval_timestamp.to_i <= author_cutoff_timestamp)
                   vote_karma = -1 * Author.parse(vote_author).karma.round
                 else
                   vote_karma = nil
