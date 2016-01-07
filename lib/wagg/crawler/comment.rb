@@ -50,6 +50,7 @@ module Wagg
 
       def votes?
         # TODO Revise the karma.nil and votes_count.nil case
+        # votes_count can be nil but still data can be accessed via backend
         #self.votes_available? && @votes.size > 0
         self.votes_available? && @votes_count > 0
       end

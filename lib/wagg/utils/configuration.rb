@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+require 'feedjira'
+
 require 'wagg/utils/constants'
 
 module Wagg
@@ -28,6 +30,16 @@ module Wagg
         @retrieval_credentials['username'] = nil
         @retrieval_credentials['password'] = nil
       end
+    end
+
+    class Feedjira::Parser::RSSEntry
+      element 'meneame:comment_id', :as => :comment_id
+      element 'meneame:link_id',    :as => :comment_news_id
+      element 'meneame:order',      :as => :comment_news_index
+      element 'meneame:user',       :as => :comment_author_name
+      element 'meneame:votes',      :as => :comment_votes_count
+      element 'meneame:karma',      :as => :comment_karma
+      element 'meneame:url',        :as => :comment_news_url_internal
     end
 
   end

@@ -20,6 +20,10 @@ module Wagg
         "AUTHOR : %{n} :: %{id} - (%{k}) (%{c})" % {id:@id, k:@karma, n:@name, c:Time.at(@creation)}
       end
 
+      def disabled
+        !@name.match(/^--(?<id>\d+)--$/).nil?
+      end
+
       def parse_author(name)
         author_item = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::AUTHOR_URL % {author:name}, 'author')
 

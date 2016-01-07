@@ -19,6 +19,7 @@ module Wagg
       # author: DD-MM-YYYY HH:MM TMZ valor: #
       NEWS_RE = /(?<author>.+):\s(?<timestamp>(\d{1,2}-\d{1,2}-\d{4}\s)?\d{1,2}:\d{1,2})\s([A-Z]+)\svalor:\s(?<weight>-?\d+)/
       NEWS_LOG_QUERY_URL = '%{url}/log'
+      NEWS_COMMENTS_RSS_URL = SITE_URL + '/comments_rss?id=%{id}'
       NEWS_VOTES_QUERY_URL = SITE_URL + '/backend/meneos.php?id=%{id}&p=%{page}'
       NEWS_STATUS_TYPE = { 'discarded' => 'mnm-discarded',
                            'queued' => 'mnm-queued',

@@ -1,6 +1,8 @@
 source "http://rubygems.org"
 # Add dependencies required to use your gem here.
 gem 'mechanize'
+gem 'feedjira'
+
 
 # Add dependencies to develop your gem here.
 # Include everything needed to run rake, tests, features, etc.

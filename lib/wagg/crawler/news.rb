@@ -185,6 +185,19 @@ module Wagg
           pages_counter += 1
         end while (pages_counter <= pages_total)
 
+        # We need to make sure we have all comments because due to bad renderization on site's end some may be missing
+        # If comments are missing, we revert to parsing them via RSS ()
+        if news_comments.size < @comments_count
+          news_comments_rss =  Feedjira::Feed.fetch_and_parse(Wagg::Utils::Constants::NEWS_COMMENTS_RSS_URL % {id:@id})
+
+          news_missing_comments = news_comments_rss.entries.map { |c| c.comment_id.to_i } - news_comments.map{ |index, c| c.id }
+
+          news_missing_comments.each do |missing_comment_id|
+            missing_comment = Comment.parse_by_id(missing_comment_id)
+            news_comments[missing_comment.news_index] = missing_comment
+          end
+        end
+
         news_comments
       end
 
