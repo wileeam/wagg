@@ -97,12 +97,8 @@ module Wagg
         def parse(item, retrieval_timestamp=Time.now.to_i)
           # Parse comment's body data
           body_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-body ")]')
-          #comment_body = body_item.search('./child::node()').to_s.scrub.strip
-          if body_item.inner_html.encoding != Encoding::UTF_8
-            comment_body = body_item.inner_html.strip.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
-          else
-            comment_body = body_item.inner_html.strip
-          end
+          #comment_body = body_item.inner_html.strip.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
+          comment_body = body_item.inner_html.scrub.strip
           comment_id = Wagg::Utils::Functions.str_at_xpath(body_item, './@id')[/(?!c-)(?<id>\d+)/].to_i
           # Also available at unique id: //*[@id="cid-XXXXXXXX"]/a/@href
           # TODO: Use regex to remove last element in extraced href instead of these functions...
