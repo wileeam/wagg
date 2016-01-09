@@ -19,11 +19,10 @@ module Wagg
         @agents = Hash.new
         @cookie_jar = nil
         @configuration = Wagg.configure
-        self.agent('default', Wagg.configuration.retrieval_delay['default'])
+        self.agent('default')
       end
 
-      def agent(name='default', delay=Wagg.configuration.retrieval_delay['default'])
-
+      def agent(name='default')
         if @agents[name].nil?
           custom_agent = Mechanize.new
 
@@ -40,7 +39,7 @@ module Wagg
           end
 
           custom_agent.pre_connect_hooks << lambda do |custom_agent, request|
-            sleep delay
+            sleep Wagg.configuration.retrieval_delay[name]
           end
 
           unless @cookie_jar.nil?

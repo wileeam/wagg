@@ -62,19 +62,69 @@ module Wagg
 
       class << self
         def parse(begin_index=1, end_index=begin_index, type='published')
-          page_begin_index, page_end_index = Utils::Functions.filter_page_interval(begin_index, end_index, type)
+          Page.parse_interval(begin_index, end_index, type)
+        end
+
+        def parse_interval(begin_index=1, end_index=begin_index, type='published')
+          # We do not really need to check the interval limits
+          #page_begin_index, page_end_index = Utils::Functions.filter_page_interval(begin_index, end_index, type)
+          page_begin_index = begin_index
+          page_end_index = end_index
+
+          if begin_index <= end_index
+            if begin_index < 1
+              page_begin_index = 1
+            end
+            if end_index < 1
+              page_end_index = 1
+            end
+          elsif begin_index > end_index
+            if end_index < 1
+              page_begin_index = 1
+            end
+            if begin_index < 1
+              page_end_index = 1
+            else
+              page_end_index = begin_index
+            end
+          end
 
           page_list = Hash.new
 
-          (page_begin_index..page_end_index).each do |page_index|
-            page_list[page_index] = Page.new(page_index, type)
+          page_index = page_begin_index
+          while page_index <= page_end_index && !(page = Page.new(page_index, type)).news_list.empty?
+            puts Time.now.to_s
+            page_list[page_index] = page
+            page_index += 1
           end
 
           page_list
         end
 
-        def parse_interval(begin_index=1, end_index=begin_index, type='published')
-          Page.parse(begin_index, end_index, type)
+        def filter_page_interval(begin_interval=1, end_interval='all', type='published')
+          # Get first page of website for reference
+          page_one = Retriever.instance.get(Constants::PAGE_URL[type] % {page:1}, 'main')
+          # Find the DOM item containing the navigation buttons for pages
+          max_end_interval_item = page_one.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " pages ")]')
+          # Parse the maximum number of pages to a number
+          # TODO: Can we do better than this (tested that there are pages with more than one 'nofollow')?
+          max_end_interval = str_at_xpath(max_end_interval_item, './a[@rel="nofollow"]/text()').to_i
+
+          filtered_begin_interval = begin_interval
+          if begin_interval == 'all' || begin_interval > max_end_interval
+            filtered_begin_interval = max_end_interval
+          elsif begin_interval < 1
+            filtered_begin_interval = 1
+          end
+
+          filtered_end_interval = end_interval
+          if end_interval == 'all' || end_interval > max_end_interval
+            filtered_end_interval = max_end_interval
+          elsif end_interval < 1
+            filtered_end_interval = 1
+          end
+
+          return filtered_begin_interval, filtered_end_interval
         end
       end
 

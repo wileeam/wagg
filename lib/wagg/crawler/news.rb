@@ -258,7 +258,7 @@ module Wagg
         comments_form_item.at_xpath('./form').nil?
       end
 
-      private :parse_comments, :parse_events_log, :comments_contribution?
+      private :parse_comments, :parse_comments_rss, :parse_comments_html, :parse_events_log, :comments_contribution?
 
 
       class << self
