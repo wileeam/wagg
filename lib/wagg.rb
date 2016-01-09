@@ -30,7 +30,7 @@ module Wagg
       intervals.has_key?(:begin_interval) ? begin_interval = intervals[:begin_interval] : begin_interval = 1
       intervals.has_key?(:end_interval) ? end_interval = intervals[:end_interval] : end_interval = begin_interval
 
-      Crawler::Page.parse(begin_interval, end_interval, type)
+      Crawler::Page.parse_interval(begin_interval, end_interval, type)
     end
 
     def author(name)
