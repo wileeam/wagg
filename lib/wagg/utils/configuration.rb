@@ -10,6 +10,7 @@ module Wagg
     class Configuration
       attr_accessor :retrieval_delay
       attr_accessor :retrieval_page_type
+      attr_accessor :retrieval_comments_rss
       attr_accessor :retrieval_credentials
 
       def initialize
@@ -25,6 +26,8 @@ module Wagg
         @retrieval_page_type['discarded'] = Wagg::Utils::Constants::NEWS_STATUS_TYPE['discarded']
         @retrieval_page_type['queued'] = Wagg::Utils::Constants::NEWS_STATUS_TYPE['queued']
         @retrieval_page_type['published'] = Wagg::Utils::Constants::NEWS_STATUS_TYPE['published']
+
+        @retrieval_comments_rss = FALSE
 
         @retrieval_credentials = Hash.new
         @retrieval_credentials['username'] = nil

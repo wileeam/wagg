@@ -57,7 +57,7 @@ module Wagg
 
       def comments
         if @comments.nil? && self.comments_available?
-          @comments = parse_comments
+          @comments = parse_comments(Wagg.configuration.retrieval_comments_rss)
         end
 
         @comments
@@ -156,7 +156,30 @@ module Wagg
             "    Comments: %{co}" % {co:(@comments.nil? ? 'EMPTY' : @comments.size)}
       end
 
-      def parse_comments
+      def parse_comments(rss=FALSE)
+        if rss
+          parse_comments_rss
+        else
+          parse_comments_html
+        end
+      end
+
+      def parse_comments_rss
+        news_comments = Hash.new
+
+        comments_retrieval_timestamp = Time.now.to_i
+
+        news_comments_rss =  Feedjira::Feed.fetch_and_parse(Wagg::Utils::Constants::NEWS_COMMENTS_RSS_URL % {id:@id})
+
+        news_comments_rss.entries.each do |c|
+          comment = Comment.parse_by_rss(c, comments_retrieval_timestamp)
+          news_comments[comment.news_index] = comment
+        end
+
+        news_comments
+      end
+
+      def parse_comments_html
         news_comments = Hash.new
 
         comments_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['news']

@@ -156,23 +156,32 @@ module Wagg
           comment_object
         end
 
-        #TODO: Complete and test
-        def parse_by_index(news_url, comment_index)
-          comment_news = News.parse(news_url)
+        def parse_by_rss(item, retrieval_timestamp=Time.now.to_i)
 
-          comment = Wagg::Utils::Retriever.instance.get(url, 'news')
-          puts comment.search('//*[@id="newswrap"]')
-          exit(0)
-          comments_list_item = comment.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
-          comment_item = comments_list_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]')
-          #comment_item = comments_list_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/div[@id="c-%{index}"]' % {index:comment_index})
-          comment_item.each do |c|
-            puts c
-          end
-          exit(0)
-          comment_object = parse(comment_item)
+          comment_id = item.comment_id.to_i
+          comment_author = item.comment_author_name
+          comment_body = item.summary
+          comment_timestamps = Hash.new
+          comment_timestamps['creation'] = item.published.to_i
+          comment_timestamps['retrieval'] = retrieval_timestamp
+          comment_news_url = item.comment_news_url_internal
+          comment_news_index = item.comment_news_index.to_i
 
-          comment_object
+          comment = Wagg::Crawler::Comment.new(
+              comment_id,
+              comment_author,
+              comment_body,
+              comment_timestamps,
+              comment_news_url,
+              comment_news_index
+          )
+
+          # Fill the remaining details
+          comment.karma = item.comment_karma.to_i
+          comment.votes_count = item.comment_votes_count.to_i
+
+          # Return the object containing the comment details
+          comment
         end
 
         def parse_timestamps(meta_item)
