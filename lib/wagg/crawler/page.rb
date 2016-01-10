@@ -93,7 +93,6 @@ module Wagg
 
           page_index = page_begin_index
           while page_index <= page_end_index && !(page = Page.new(page_index, type)).news_list.empty?
-            puts Time.now.to_s
             page_list[page_index] = page
             page_index += 1
           end
