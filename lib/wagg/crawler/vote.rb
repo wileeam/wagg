@@ -61,6 +61,8 @@ module Wagg
                                    vote_adjusted_timestamp = vote_item.captures[1] + ' UTC'
                                    if DateTime.strptime(vote_adjusted_timestamp,'%d/%m-%H:%M:%S %Z').to_time > votes_retrieval_timestamp
                                      vote_adjusted_timestamp = (votes_retrieval_timestamp - 365*24*60*60).year.to_s + '/' + vote_item.captures[1] + ' UTC'
+                                   else
+                                     vote_adjusted_timestamp = votes_retrieval_timestamp.year.to_s + '/' + vote_item.captures[1] + ' UTC'
                                    end
                                    DateTime.strptime(vote_adjusted_timestamp,'%Y/%d/%m-%H:%M:%S %Z').to_time.to_i
                                  # News regex: HH:MM TMZ
