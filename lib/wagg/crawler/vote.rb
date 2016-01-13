@@ -52,10 +52,17 @@ module Wagg
               vote_author = vote_item.captures[0]
               vote_timestamp = case vote_item.captures[1]
                                  # Comment regex: DD/MM-HH:MM:SS
+                                 # YYYY has to be inferred
                                  # No TMZ provided, enforced UTC like the rest of the site
                                  # Checked that TMZ is UTC
                                  when /\A\d{1,2}\/\d{1,2}-\d{1,2}:\d{1,2}:\d{1,2}\z/
-                                   DateTime.strptime(vote_item.captures[1] + ' UTC','%d/%m-%H:%M:%S %Z').to_time.to_i
+                                   # if month and day more than today... YYYY = current_year -1
+                                   # else YYYY = current_year
+                                   vote_adjusted_timestamp = vote_item.captures[1] + ' UTC'
+                                   if DateTime.strptime(vote_adjusted_timestamp,'%d/%m-%H:%M:%S %Z').to_time > votes_retrieval_timestamp
+                                     vote_adjusted_timestamp = (votes_retrieval_timestamp - 365*24*60*60).year.to_s + '/' + vote_item.captures[1] + ' UTC'
+                                   end
+                                   DateTime.strptime(vote_adjusted_timestamp,'%Y/%d/%m-%H:%M:%S %Z').to_time.to_i
                                  # News regex: HH:MM TMZ
                                  # DD/MM have to be inferred
                                  when /\A\d{1,2}:\d{1,2}\s[A-Z]+\z/
