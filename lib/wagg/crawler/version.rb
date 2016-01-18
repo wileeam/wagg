@@ -2,10 +2,10 @@
 
 module Wagg
   module Version
-    MAJOR = 0
-    MINOR = 9
-    PATCH = 10
-    BUILD = 'beta'
+    MAJOR = 1
+    MINOR = 0
+    PATCH = 1
+    BUILD = 'pre'
 
     STRING = [MAJOR, MINOR, PATCH, BUILD].compact.join('.')
   end

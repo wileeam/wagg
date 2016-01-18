@@ -158,10 +158,12 @@ module Wagg
 
       def parse_comments(rss=FALSE)
         if rss
-          parse_comments_rss
+          news_comments = parse_comments_rss
         else
-          parse_comments_html
+            news_comments = parse_comments_html
         end
+
+        news_comments
       end
 
       def parse_comments_rss
@@ -201,8 +203,12 @@ module Wagg
           end
 
           comments_item.each do |c|
-            comment = Comment.parse(c, comments_retrieval_timestamp)
-            news_comments[comment.news_index] = comment
+            begin
+              comment = Comment.parse(c, comments_retrieval_timestamp)
+              news_comments[comment.news_index] = comment
+            rescue NoMethodError, TypeError => e
+              # TODO: Do nothing? Next piece of code will take care of the missing comments?
+            end
           end
 
           pages_counter += 1
@@ -211,12 +217,22 @@ module Wagg
         # We need to make sure we have all comments because due to bad renderization on site's end some may be missing
         # If comments are missing, we revert to parsing them via RSS ()
         if news_comments.size < @comments_count
+          news_comments_rss_retrieval_timestamp = Time.now.to_i
           news_comments_rss =  Feedjira::Feed.fetch_and_parse(Wagg::Utils::Constants::NEWS_COMMENTS_RSS_URL % {id:@id})
 
-          news_missing_comments = news_comments_rss.entries.map { |c| c.comment_id.to_i } - news_comments.map{ |index, c| c.id }
+          news_missing_comments = Array.new
+          news_comments_rss.entries.each do |missing_comment_rss|
+            unless news_comments.map{ |index, c| c.id }.include?(missing_comment_rss.comment_id.to_i)
+              news_missing_comments.push(missing_comment_rss)
+            end
+          end
 
-          news_missing_comments.each do |missing_comment_id|
-            missing_comment = Comment.parse_by_id(missing_comment_id)
+          news_missing_comments.each do |missing_comment|
+            begin
+              missing_comment = Comment.parse_by_id(missing_comment.comment_id.to_i)
+            rescue NoMethodError, TypeError => e
+              missing_comment = Comment.parse_by_rss(missing_comment, news_comments_rss_retrieval_timestamp)
+            end
             news_comments[missing_comment.news_index] = missing_comment
           end
         end

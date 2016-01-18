@@ -26,6 +26,11 @@ module Wagg
   end
 
   class << self
+
+    # Parses the summaries of the news in the given page interval
+    # @param type [String] the status of desired news
+    # @param intervals []
+    # @return [String] the resulting webpage
     def page(type='published', **intervals)
       intervals.has_key?(:begin_interval) ? begin_interval = intervals[:begin_interval] : begin_interval = 1
       intervals.has_key?(:end_interval) ? end_interval = intervals[:end_interval] : end_interval = begin_interval
