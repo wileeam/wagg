@@ -220,20 +220,39 @@ module Wagg
           news_comments_rss_retrieval_timestamp = Time.now.to_i
           news_comments_rss =  Feedjira::Feed.fetch_and_parse(Wagg::Utils::Constants::NEWS_COMMENTS_RSS_URL % {id:@id})
 
+          # We try first to get the IDs of missing comments via RSS as it is just one request to the server
           news_missing_comments = Array.new
           news_comments_rss.entries.each do |missing_comment_rss|
-            unless news_comments.map{ |index, c| c.id }.include?(missing_comment_rss.comment_id.to_i)
+            unless news_comments.map{ |index, c| c.news_index }.include?(missing_comment_rss.comment_news_index.to_i)
               news_missing_comments.push(missing_comment_rss)
             end
           end
 
-          news_missing_comments.each do |missing_comment|
+          # Finally, we are expecting to have all missing comments IDs...
+          news_missing_comments.each do |missing_comment_rss|
             begin
-              missing_comment = Comment.parse_by_id(missing_comment.comment_id.to_i)
+              missing_comment = Comment.parse_by_id(missing_comment_rss.comment_id.to_i)
             rescue NoMethodError, TypeError => e
-              missing_comment = Comment.parse_by_rss(missing_comment, news_comments_rss_retrieval_timestamp)
+              missing_comment = Comment.parse_by_rss(missing_comment_rss, news_comments_rss_retrieval_timestamp)
             end
             news_comments[missing_comment.news_index] = missing_comment
+          end
+
+          # If we haven't got all missing comments, then we have to do individual requests for the missing comments
+          # For example, the RSS delivered from the server has a limit of 500 entries but there can be more comments
+          if news_comments.size < @comments_count
+            news_missing_comments_indexes = (1..@comments_count).to_a - news_comments.map{ |index, c| c.news_index }
+            news_missing_comments_indexes.each do |missing_comment_index|
+              comment_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['comment']
+              news_item = Wagg::Utils::Retriever.instance.get("#{@urls['internal']}/c0#{missing_comment_index}#c-#{missing_comment_index}", 'comment')
+              news_comment_item = news_item.search("//*[@id=\"c-#{missing_comment_index}\"]")
+              begin
+                missing_comment = Comment.parse(news_comment_item, comment_retrieval_timestamp)
+                news_comments[missing_comment.news_index] = missing_comment
+              rescue NoMethodError, TypeError => e
+                # TODO: Nothing can be done at this stage as there are no other options to retrieve further comments
+              end
+            end
           end
         end
 
