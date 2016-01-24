@@ -97,13 +97,17 @@ module Wagg
         def parse(item, retrieval_timestamp=Time.now.to_i)
           # Parse comment's body data
           body_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-body ")]')
-          #comment_body = body_item.inner_html.strip.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
-          comment_body = body_item.inner_html.scrub.strip
+
           comment_id = Wagg::Utils::Functions.str_at_xpath(body_item, './@id')[/(?!c-)(?<id>\d+)/].to_i
           # Also available at unique id: //*[@id="cid-XXXXXXXX"]/a/@href
           # TODO: Use regex to remove last element in extraced href instead of these functions...
-          comment_news_url = Wagg::Utils::Constants::SITE_URL + Wagg::Utils::Functions.str_at_xpath(body_item, './a/@href').split('/')[0...-1].join('/')
+          news_url_item = Wagg::Utils::Functions.str_at_xpath(body_item, './a/@href').split('/')[0...-1].join('/')
+          comment_news_url = Wagg::Utils::Constants::SITE_URL + news_url_item
           comment_news_index = Wagg::Utils::Functions.str_at_xpath(item, './@id')[/(?!cid-)(?<id>\d+)/].to_i
+
+          #comment_body = body_item.inner_html.strip.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
+          body_slice_string = "<a href=\"#{news_url_item}/c0#{comment_news_index}#c-#{comment_news_index}\" rel=\"nofollow\"><strong>##{comment_news_index}</strong></a>"
+          comment_body = body_item.inner_html.scrub.tap{|s| s.slice!(body_slice_string)}.strip
 
           # Parse comment's authorship meta data
           meta_item = item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " comment-meta ")]')
