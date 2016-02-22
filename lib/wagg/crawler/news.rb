@@ -47,13 +47,14 @@ module Wagg
         end
       end
 
-      def urls
-        {'internal' => Wagg::Utils::Constants::NEWS_URL % {:url_id => URI(@urls['internal']).path.split('/').last},
-         'external' => @urls['external'] }
+      def urls(normalize = TRUE)
+        { 'internal' => self.url_internal(normalize), 'external' => @urls['external'] }
       end
 
-      def url_internal
-        @urls['internal']
+      def url_internal(normalize = TRUE)
+        normalize ?
+            Wagg::Utils::Constants::NEWS_URL % {:url_id => URI(@urls['internal']).path.split('/').last} :
+            @urls['internal']
       end
 
       def url_external
@@ -158,7 +159,7 @@ module Wagg
             "\n" +
             "    %{d}..." % {d:@description[0,10]} +
             "\n" +
-            "    %{u}" % {u:@urls} +
+            "    %{u}" % {u:self.urls} +
             "\n" +
             "    %{k} :: %{vc} - %{c}" % {k:@karma, vc:@votes_count, c:@clicks} +
             "\n" +

@@ -6,7 +6,7 @@ module Wagg
   module Crawler
     class Comment
       attr_reader :id, :author, :timestamps, :body
-      attr_reader :news_url, :news_index
+      attr_reader :news_index #,:news_url
       attr_accessor :votes_count, :karma
 
       def initialize(id, author, body, timestamps, news_url, news_index)
@@ -23,6 +23,10 @@ module Wagg
         @votes = nil
 
         @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= @timestamps['retrieval']
+      end
+
+      def news_url(normalize = TRUE)
+        normalize ? URI(@news_url).path.split('/').last : @news_url
       end
 
       def votes
@@ -82,7 +86,7 @@ module Wagg
       def to_s
         "COMMENT : %{id} - %{a}" % {id:@id, a:@author} +
             "\n" +
-            "    %{news_index} - %{news_url}" % {news_index:@news_index, news_url:@news_url} +
+            "    %{news_index} - %{news_url}" % {news_index:@news_index, news_url:Wagg::Utils::Constants::NEWS_URL % {:url_id => self.news_url},} +
             "\n" +
             "    %{ts}" % {ts:@timestamps} +
             "\n" +
