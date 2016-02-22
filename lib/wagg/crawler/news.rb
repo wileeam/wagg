@@ -6,7 +6,7 @@ require 'wagg/crawler/comment'
 module Wagg
   module Crawler
     class News
-      attr_reader :id, :title, :author, :description, :timestamps, :urls, :category, :status
+      attr_reader :id, :title, :author, :description, :timestamps, :category, :status
       attr_accessor :karma, :votes_count, :clicks, :comments_count
       attr_accessor :tags
 
@@ -45,6 +45,19 @@ module Wagg
             @comments_closed = comments_contribution?
             @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
         end
+      end
+
+      def urls
+        {'internal' => Wagg::Utils::Constants::NEWS_URL % {:url_id => URI(@urls['internal']).path.split('/').last},
+         'external' => @urls['external'] }
+      end
+
+      def url_internal
+        @urls['internal']
+      end
+
+      def url_external
+        @urls['external']
       end
 
       def votes
