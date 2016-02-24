@@ -53,7 +53,7 @@ module Wagg
 
       def url_internal(normalize = TRUE)
         normalize ?
-            Wagg::Utils::Constants::NEWS_URL % {:url_id => URI(@urls['internal']).path.split('/').last} :
+            Wagg::Utils::Constants::NEWS_URL % {:url_id => URI(URI.escape(@urls['internal'])).path.split('/').last} :
             @urls['internal']
       end
 

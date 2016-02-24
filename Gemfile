@@ -3,7 +3,6 @@ source "http://rubygems.org"
 gem 'mechanize'
 gem 'feedjira'
 
-
 # Add dependencies to develop your gem here.
 # Include everything needed to run rake, tests, features, etc.
 group :development do

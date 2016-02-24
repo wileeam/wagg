@@ -26,7 +26,7 @@ module Wagg
       end
 
       def news_url(normalize = TRUE)
-        normalize ? Wagg::Utils::Constants::NEWS_URL % {:url_id => URI(@news_url).path.split('/').last} : @news_url
+        normalize ? Wagg::Utils::Constants::NEWS_URL % {:url_id => URI(URI.escape(@news_url)).path.split('/').last} : @news_url
       end
 
       def votes
