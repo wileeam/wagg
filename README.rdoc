@@ -1,6 +1,6 @@
 = wagg
 
-Automatic parser for the Spanish news aggregator Menéame (http://meneame.net)
+Pseudo-automatic parser for the Spanish news aggregator Menéame (http://meneame.net)
 
 Parsed content is fully configurable including news descriptions, comments and voting information.
 
@@ -20,6 +20,5 @@ multiple IPs). Therefore, handle playing with built-in parsing delays at your ow
 
 == Copyright
 
-Copyright (c) 2015 Guillermo Rodriguez Cano. See LICENSE.txt for
-further details.
+Copyright (c) 2015-2016 Guillermo Rodríguez Cano. See LICENSE.txt for further details.
 
