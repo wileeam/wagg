@@ -39,8 +39,12 @@ module Wagg
 
         news_list_items = page_item.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
         news_list_items.each do |news_item|
-          news = News.parse_summary(news_item, page_retrieval_timestamp)
-          news_summaries_list[news.urls['internal']] = news
+          # Skip the news-like ads (luckily they have @class="ads" for easier identification)
+          unless news_item.at('./div[contains(concat(" ", normalize-space(@class), " "), " ads ")]')
+            news = News.parse_summary(news_item, page_retrieval_timestamp)
+            news_summaries_list[news.urls['internal']] = news
+            puts news.urls['internal']
+          end
         end
 
         news_summaries_list
