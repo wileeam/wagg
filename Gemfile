@@ -1,6 +1,7 @@
 source "http://rubygems.org"
 # Add dependencies required to use your gem here.
-gem 'mechanize'
+# Temporary fix till Mechanize version is bumped from 2.7.4 to work with jRuby
+gem 'mechanize', github: 'sparklemotion/mechanize', ref: 'master'
 gem 'feedjira'
 
 # Add dependencies to develop your gem here.
