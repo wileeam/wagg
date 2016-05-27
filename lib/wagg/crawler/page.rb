@@ -43,7 +43,6 @@ module Wagg
           unless news_item.at('./div[contains(concat(" ", normalize-space(@class), " "), " ads ")]')
             news = News.parse_summary(news_item, page_retrieval_timestamp)
             news_summaries_list[news.urls['internal']] = news
-            puts news.urls['internal']
           end
         end
 
