@@ -13,6 +13,11 @@ module Wagg
       attr_accessor :retrieval_comments_rss
       attr_accessor :retrieval_credentials
 
+      alias :delay :retrieval_delay
+      alias :page_type :retrieval_page_type
+      alias :comment_rss :retrieval_comments_rss
+      alias :credentials :retrieval_credentials
+
       def initialize
         @retrieval_delay = Hash.new
         @retrieval_delay['default'] = Wagg::Utils::Constants::RETRIEVAL_DELAY['default']

@@ -6,7 +6,28 @@ require 'wagg/crawler/comment'
 module Wagg
   module Crawler
     class News
-      attr_reader :id, :title, :author, :description, :timestamps, :category, :status
+      # @!attribute [r] id
+      #   @return [Fixnum] the unique id of the news
+      attr_reader :id
+      # @!attribute [r] title
+      #   @return [String] the title of the news
+      attr_reader :title
+      # @!attribute [r] author
+      #   @return [String] the author of the news
+      attr_reader :author
+      # @!attribute [r] description
+      #   @return [String] the description of the news
+      attr_reader :description
+      # @!attribute [r] timestamps
+      #   @return [Hash] the creation and publication (if available) timestamps of the news
+      attr_reader :timestamps
+      # @!attribute [r] category
+      #   @return [String] the category of the news
+      attr_reader :category
+      # @!attribute [r] status
+      #   @return [String] the status (published, queued, discarded) of the news
+      attr_reader :status
+
       attr_accessor :karma, :votes_count, :clicks, :comments_count
       attr_accessor :tags
 
@@ -460,7 +481,9 @@ module Wagg
           news_tags = Array.new
           for t in tags_item
             unless Wagg::Utils::Functions.str_at_xpath(t, './text()').nil?
-              news_tags.push(Wagg::Utils::Functions.str_at_xpath(t, './text()'))
+              unless Wagg::Utils::Functions.str_at_xpath(t, './text()').empty?
+                news_tags.push(Wagg::Utils::Functions.str_at_xpath(t, './text()'))
+              end
             end
 
           end
