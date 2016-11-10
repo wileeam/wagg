@@ -464,9 +464,9 @@ module Wagg
 
         def parse_votes_count(details_item, news_id)
           news_votes_count = Hash.new
-          news_votes_count["positive"] = Wagg::Utils::Functions.str_at_xpath(details_item, './span[@id="a-usu-%{id}"]/text()' % {id:news_id}).to_i
-          news_votes_count["negative"] = Wagg::Utils::Functions.str_at_xpath(details_item, './span[@id="a-neg-%{id}"]/text()' % {id:news_id}).to_i
-          news_votes_count["anonymous"] = Wagg::Utils::Functions.str_at_xpath(details_item, './/span[@id="a-ano-%{id}"]/text()' % {id:news_id}).to_i
+          news_votes_count["positive"] = Wagg::Utils::Functions.str_at_xpath(details_item, './span/span[@id="a-usu-%{id}"]/strong/text()' % {id:news_id}).to_i
+          news_votes_count["negative"] = Wagg::Utils::Functions.str_at_xpath(details_item, './span/span[@id="a-neg-%{id}"]/strong/text()' % {id:news_id}).to_i
+          news_votes_count["anonymous"] = Wagg::Utils::Functions.str_at_xpath(details_item, './span/span[@id="a-ano-%{id}"]/strong/text()' % {id:news_id}).to_i
 
           news_votes_count
         end
