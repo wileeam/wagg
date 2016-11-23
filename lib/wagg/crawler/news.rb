@@ -381,6 +381,7 @@ module Wagg
           # Retrieve status of news
           news_status = parse_status(body_item)
 
+          # TODO Since November 2016 there are two 'details_item' divs (one with an extra class 'main'). Find a solution
           # Retrieve details news meta-data DOM subtree
           details_item = body_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " news-details ")]')
 
@@ -472,7 +473,7 @@ module Wagg
         end
 
         def parse_comments_count(details_item)
-          Wagg::Utils::Functions.str_at_xpath(details_item, './span/a/span[contains(concat(" ", normalize-space(@class), " "), " counter ")]/text()').to_i
+          Wagg::Utils::Functions.str_at_xpath(details_item, './/span[contains(concat(" ", normalize-space(@class), " "), " counter ")]/text()').to_i
         end
 
         def parse_tags(body_item)
