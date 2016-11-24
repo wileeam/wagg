@@ -381,15 +381,16 @@ module Wagg
           # Retrieve status of news
           news_status = parse_status(body_item)
 
-          # TODO Since November 2016 there are two 'details_item' divs (one with an extra class 'main'). Find a solution
           # Retrieve details news meta-data DOM subtree
-          details_item = body_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " news-details ")]')
+          #details_item = body_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-details ")]')
+          details_item = body_item.search('div.news-details:not(.main)')
+          details_main_item = body_item.search('div.news-details.main')
 
           # Parse votes count: up-votes (registered and anonymous users) and down-votes (registered users)
           news_votes_count = parse_votes_count(details_item, news_id)
 
           # Parse comments'count
-          news_comments_count = parse_comments_count(details_item)
+          news_comments_count = parse_comments_count(details_main_item)
 
           # Parse number of clicks
           clicks_item = body_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " clics ")]')
@@ -473,7 +474,8 @@ module Wagg
         end
 
         def parse_comments_count(details_item)
-          Wagg::Utils::Functions.str_at_xpath(details_item, './/span[contains(concat(" ", normalize-space(@class), " "), " counter ")]/text()').to_i
+          #TODO Improve management of no comments in news (now it says 'sin comentarios' which is converted as a zero by to_i method)
+          details_item.search('a.comments').text[/(?<comments_count>\d+)\scomentarios/,1].to_i
         end
 
         def parse_tags(body_item)
