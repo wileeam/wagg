@@ -223,7 +223,7 @@ module Wagg
 
         news_item = Wagg::Utils::Retriever.instance.get(@urls['internal'], 'news')
 
-        news_comments_item = news_item.css('div#newswrap > div.news-summary > div.comments')
+        news_comments_item = news_item.css('div#newswrap div.comments')
 
         comments_item = news_comments_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
         # Find out how many pages of comments there are (at least one, the news page)
