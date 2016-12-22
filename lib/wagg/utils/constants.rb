@@ -7,6 +7,7 @@ module Wagg
       LOGIN_URL = SITE_URL + '/login'
       # Author URL query template
       AUTHOR_URL = SITE_URL + '/user/%{author}'
+      AUTHOR_HISTORY_URL = AUTHOR_URL + '/history'
       # Comment's vote regular expression and URL query templates
       # author: DD/MM-HH:MM:SS karma: #
       COMMENT_RE = /(?<author>\w+):\s(?<timestamp>\d{1,2}\/\d{1,2}-\d{1,2}:\d{1,2}:\d{1,2})\skarma:\s(?<weight>-?\d+)/

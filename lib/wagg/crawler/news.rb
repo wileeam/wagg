@@ -195,7 +195,7 @@ module Wagg
         if rss
           news_comments = parse_comments_rss
         else
-            news_comments = parse_comments_html
+          news_comments = parse_comments_html
         end
 
         news_comments
@@ -222,7 +222,8 @@ module Wagg
         comments_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['news']
 
         news_item = Wagg::Utils::Retriever.instance.get(@urls['internal'], 'news')
-        news_comments_item = news_item.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
+
+        news_comments_item = news_item.css('div#newswrap > div.news-summary > div.comments')
 
         comments_item = news_comments_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
         # Find out how many pages of comments there are (at least one, the news page)
@@ -358,18 +359,19 @@ module Wagg
           body_item = summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
 
           # Parse title and unique id
-          news_title = Wagg::Utils::Functions.str_at_xpath(body_item, './*[self::h1 or self::h2]/a/text()')
-          news_id = Wagg::Utils::Functions.str_at_xpath(body_item, './*[self::h1 or self::h2]/a/@class')[/(?<id>\d+)/].to_i
+          news_meta_content_item = body_item.css('div.center-content')
+          news_title = news_meta_content_item.at_css('h1 > a').text.strip
+          news_id = news_meta_content_item.at_css('h1 > a')["class"][/(?<id>\d+)/].to_i
 
           # Parse (brief) description as text
-          # TODO: Possibly parse the full node instead (think of anything that is not text such as links,...)
-          news_description = Wagg::Utils::Functions.str_at_xpath(body_item, './text()[normalize-space()]')
+          news_content_item = body_item.css("div.news-content")
+          news_description = news_content_item.text.strip
 
           # Parse URLs (internal and external)
           news_urls = parse_urls(body_item)
 
           # Retrieve main news meta-data DOM subtree
-          meta_item = body_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-submitted ")]')
+          meta_item = body_item.css('div.news-submitted')
 
           # Parse sending and publishing timestamps
           news_timestamps = parse_timestamps(meta_item)
@@ -382,15 +384,14 @@ module Wagg
           news_status = parse_status(body_item)
 
           # Retrieve details news meta-data DOM subtree
-          #details_item = body_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-details ")]')
-          details_item = body_item.search('div.news-details:not(.main)')
-          details_main_item = body_item.search('div.news-details.main')
+          #details_item = body_item.search('div.news-details:not(.main)')
+          details_item = body_item.search('div.news-details')
 
           # Parse votes count: up-votes (registered and anonymous users) and down-votes (registered users)
           news_votes_count = parse_votes_count(details_item, news_id)
 
           # Parse comments'count
-          news_comments_count = parse_comments_count(details_main_item)
+          news_comments_count = parse_comments_count(details_item)
 
           # Parse number of clicks
           clicks_item = body_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " clics ")]')
@@ -438,12 +439,10 @@ module Wagg
         end
 
         def parse_urls(body_item)
-          external_url_item = body_item
-          internal_url_item = body_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " votes ")]')
-
           news_urls = Hash.new
-          news_urls['external'] = Wagg::Utils::Functions.str_at_xpath(external_url_item, './*[self::h1 or self::h2]/a/@href')
-          news_urls['internal'] = Wagg::Utils::Constants::SITE_URL + Wagg::Utils::Functions.str_at_xpath(internal_url_item, './a/@href')
+
+          news_urls['external'] = body_item.at_css('div.center-content > h1 > a')["href"]
+          news_urls['internal'] = Wagg::Utils::Constants::SITE_URL + body_item.at_css('div.votes > a')["href"]
 
           news_urls
         end
