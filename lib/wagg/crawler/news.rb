@@ -383,7 +383,6 @@ module Wagg
           news_status = parse_status(body_item)
 
           # Retrieve details news meta-data DOM subtree
-          #details_item = body_item.search('div.news-details:not(.main)')
           details_item = body_item.search('div.news-details')
 
           # Parse votes count: up-votes (registered and anonymous users) and down-votes (registered users)
@@ -397,13 +396,19 @@ module Wagg
           news_clicks = Wagg::Utils::Functions.str_at_xpath(clicks_item, './text()')[/(?<id>\d+)/].to_i
 
           # Retrieve secondary details meta-data DOM subtree
-          others_item = details_item.search('./span[contains(concat(" ", normalize-space(@class), " "), " tool ")]')
 
           # Parse category
-          news_category = Wagg::Utils::Functions.str_at_xpath(others_item, './a/@href')[/\/m\/(?<category>.+)/,1]
+          # TODO Revise in case they fixed the following issue
+          # Hack to cover for non-given categories in the DOM tree (we may be able to infer them from the URL)
+          #· Example: https://www.meneame.net/m/TeRespondo/soy-disenador-meneame-respondo
+          if details_item.at_css('span.tool.sub-name > a').nil?
+            news_category = nil
+          else
+            news_category = details_item.at_css('span.tool.sub-name > a')['href'][/\/m\/(?<category>.+)/,1]
+          end
 
           # Parse karma (accumulative sum of users' votes, i.e., news weight)
-          news_karma = Wagg::Utils::Functions.str_at_xpath(others_item, './span[@id="a-karma-%{id}"]/text()' % {id:news_id}).to_i
+          news_karma = details_item.at_css('span.tool.karma > span.karma-value').text.to_i
 
           # Create the news object (we only create it with data that won't 'change' over time)
           news = News.new(
