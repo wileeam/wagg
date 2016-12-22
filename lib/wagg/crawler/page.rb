@@ -37,7 +37,7 @@ module Wagg
         page_item = Utils::Retriever.instance.get(Utils::Constants::PAGE_URL[type] % {page:@index}, 'page')
         news_summaries_list = Hash.new
 
-        news_list_items = page_item.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
+        news_list_items = page_item.css('div.news-body')
         news_list_items.each do |news_item|
           # Skip the news-like ads (luckily they have @class="ads" for easier identification)
           unless news_item.at('./div[contains(concat(" ", normalize-space(@class), " "), " ads ")]')

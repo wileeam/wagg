@@ -339,13 +339,13 @@ module Wagg
           news_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['news']
 
           news_item = Wagg::Utils::Retriever.instance.get(url, 'news').search('//*[@id="newswrap"]')
-          news_summary_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
-          news_comments_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
-          news_body_item = news_summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
+          #news_summary_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
+          #news_body_item = news_summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
+          news_body_item = news_item.css('div.news-summary > div.news-body')
 
           # Parse the summary of the news (same information we would get from the front page)
           # Reason for which the tags require the body_item again...
-          news = parse_summary(news_summary_item, news_retrieval_timestamp)
+          news = parse_summary(news_body_item, news_retrieval_timestamp)
 
           # Parse and add tags to the news summary and return it (as a full parsed news now)
           news.tags = parse_tags(news_body_item)
@@ -354,14 +354,13 @@ module Wagg
           news
         end
 
-        def parse_summary(summary_item, retrieval_timestamp=Time.now.to_i)
+        def parse_summary(body_item, retrieval_timestamp=Time.now.to_i)
           # Retrieve main news body DOM subtree
-          body_item = summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
+          #body_item = summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
 
           # Parse title and unique id
-          news_meta_content_item = body_item.css('div.center-content')
-          news_title = news_meta_content_item.at_css('h1 > a').text.strip
-          news_id = news_meta_content_item.at_css('h1 > a')["class"][/(?<id>\d+)/].to_i
+          news_title = body_item.at_css('h1 > a,h2 > a').text.strip
+          news_id = body_item.at_css('h1 > a,h2 > a')["class"][/(?<id>\d+)/].to_i
 
           # Parse (brief) description as text
           news_content_item = body_item.css("div.news-content")
@@ -441,7 +440,7 @@ module Wagg
         def parse_urls(body_item)
           news_urls = Hash.new
 
-          news_urls['external'] = body_item.at_css('div.center-content > h1 > a')["href"]
+          news_urls['external'] = body_item.at_css('h1 > a,h2 > a')["href"]
           news_urls['internal'] = Wagg::Utils::Constants::SITE_URL + body_item.at_css('div.votes > a')["href"]
 
           news_urls
