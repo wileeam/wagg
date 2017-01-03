@@ -13,7 +13,7 @@ module Wagg
       def initialize(name)
         @id = nil
         @name = name
-        @disabled = FALSE
+        @disabled = false
         parse_author(name)
       end
 
@@ -57,7 +57,7 @@ module Wagg
               @creation = DateTime.strptime(author_date,'%d-%m-%Y %H:%M %Z').to_time.to_i
             when /\Anombre:/
               if Wagg::Utils::Functions.str_at_xpath(i, './td/text()').eql?('disabled')
-                @disabled = TRUE
+                @disabled = true
               end
             when /\Ausuario:/
               # @name == name

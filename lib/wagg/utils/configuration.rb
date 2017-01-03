@@ -32,7 +32,7 @@ module Wagg
         @retrieval_page_type['queued'] = Wagg::Utils::Constants::NEWS_STATUS_TYPE['queued']
         @retrieval_page_type['published'] = Wagg::Utils::Constants::NEWS_STATUS_TYPE['published']
 
-        @retrieval_comments_rss = FALSE
+        @retrieval_comments_rss = false
 
         @retrieval_credentials = Hash.new
         @retrieval_credentials['username'] = nil

@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+# @author Guillermo Rodríguez Cano <gurc@kth.se>
+
 require 'wagg/utils/functions'
 require 'wagg/utils/configuration'
 
@@ -27,10 +29,10 @@ module Wagg
 
   class << self
 
-    # Parses the summaries of the news in the given page interval
+    # Parse the summaries of the news for the given page interval
     # @param type [String] the status of desired news
-    # @param intervals []
-    # @return [String] the resulting webpage
+    # @param intervals [{FixNum => FixNum}] the intervals of the pages with the desired news
+    # @return [nil] the parsed desired news
     def page(type='published', **intervals)
       intervals.has_key?(:begin_interval) ? begin_interval = intervals[:begin_interval] : begin_interval = 1
       intervals.has_key?(:end_interval) ? end_interval = intervals[:end_interval] : end_interval = begin_interval

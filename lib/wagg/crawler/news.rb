@@ -68,11 +68,11 @@ module Wagg
         end
       end
 
-      def urls(normalize = TRUE)
+      def urls(normalize = true)
         { 'internal' => self.url_internal(normalize), 'external' => @urls['external'] }
       end
 
-      def url_internal(normalize = TRUE)
+      def url_internal(normalize = true)
         normalize ?
             Wagg::Utils::Constants::NEWS_URL % {:url_id => URI(URI.escape(@urls['internal'])).path.split('/').last} :
             @urls['internal']
@@ -143,11 +143,11 @@ module Wagg
       end
 
       def comments_available?
-        TRUE # Comments are always available
+        true # Comments are always available
       end
 
       def comments_consistent?
-        self.comments? ? @comments_count == self.comments.size : FALSE
+        self.comments? ? @comments_count == self.comments.size : false
       end
 
       def votes?
@@ -165,7 +165,7 @@ module Wagg
       end
 
       def votes_consistent?
-        self.votes? ? (@votes_count['positive'] + @votes_count['negative']) == self.votes.size : FALSE
+        self.votes? ? (@votes_count['positive'] + @votes_count['negative']) == self.votes.size : false
       end
 
       def log_available?
@@ -191,7 +191,7 @@ module Wagg
             "    Comments: %{co}" % {co:(@comments.nil? ? 'EMPTY' : @comments.size)}
       end
 
-      def parse_comments(rss=FALSE)
+      def parse_comments(rss=false)
         if rss
           news_comments = parse_comments_rss
         else

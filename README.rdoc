@@ -20,5 +20,5 @@ multiple IPs). Therefore, handle playing with built-in parsing delays at your ow
 
 == Copyright
 
-Copyright (c) 2015-2016 Guillermo Rodríguez Cano. See LICENSE.txt for further details.
+Copyright (c) 2015-2017 Guillermo Rodríguez Cano. See LICENSE.txt for further details.
 

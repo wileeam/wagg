@@ -18,9 +18,9 @@ Juwelier::Tasks.new do |gem|
   gem.name = 'wagg'
   gem.summary = %Q{Meneame Dataset Generator}
   gem.description = %Q{This is a nice Meneame crawler}
-  gem.email = 'wschutz@gmail.com'
+  gem.email = 'gurc@kth.se'
   gem.homepage = 'http://github.com/wileeam/wagg'
-  gem.authors = ['Guillermo Rodriguez Cano']
+  gem.authors = ['Guillermo Rodríguez Cano']
   gem.license = 'MIT'
   gem.version = Wagg::Version::STRING
   # dependencies defined in Gemfile

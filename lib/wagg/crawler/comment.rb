@@ -25,7 +25,7 @@ module Wagg
         @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::COMMENT_VOTES_LIFETIME) <= @timestamps['retrieval']
       end
 
-      def news_url(normalize = TRUE)
+      def news_url(normalize = true)
         normalize ? Wagg::Utils::Constants::NEWS_URL % {:url_id => URI(URI.escape(@news_url)).path.split('/').last} : @news_url
       end
 
@@ -65,7 +65,7 @@ module Wagg
       end
 
       def votes_consistent?
-        self.votes? ? @votes_count == self.votes.size : FALSE
+        self.votes? ? @votes_count == self.votes.size : false
       end
 
       def parent_index
