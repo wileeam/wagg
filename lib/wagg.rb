@@ -1,5 +1,8 @@
-require "wagg/version"
+# encoding: UTF-8
 
+require 'yaml'
+
+require 'wagg/version'
 require 'wagg/crawler/author'
 
 module Wagg
@@ -8,6 +11,18 @@ module Wagg
   class << self
     def author(name)
       Crawler::Author.parse(name)
+    end
+
+    def news(id)
+      false
+    end
+
+    def comment(id)
+      false
+    end
+
+    def votes(id, type='news')
+      false
     end
 
     def settings
@@ -43,8 +58,17 @@ module Wagg
         @credentials['username'] = nil
         @credentials['password'] = nil
 
-        @user_agent = "Mac Mozilla"
-        @user_agent_log = "pong.log"
+        secrets_path = ::Wagg::Constants::Retriever::CREDENTIALS_PATH
+        if File.file?(secrets_path)
+          credentials_yaml = YAML.load(File.read(secrets_path))
+
+          @credentials['username'] = credentials_yaml['username']
+          @credentials['password'] = credentials_yaml['password']
+        end
+
+        @user_agent = 'Mac Mozilla'
+        @user_agent_log = false
+        @user_agent_logpath = 'mechanize_agent.log'
       end
 
       # def credentials?

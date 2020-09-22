@@ -1,4 +1,5 @@
-# frozen_string_literal: true
+# encoding: UTF-8
+
 require 'singleton'
 require 'mechanize'
 require 'logger'
@@ -19,30 +20,21 @@ module Wagg
 
         #self.agent('default')
       end
-
+      
       def agent(name='default')
         if @agents[name].nil?
-          custom_agent = Mechanize.new
+          custom_agent = setup()
 
-          if name.eql?'default'
+          if name.eql? 'default'
             @agents[name] = custom_agent
-
-            #Wagg::Settings.configuration.credentials?
-
-            unless Wagg::Settings.configuration.credentials['username'].nil? || Wagg::Settings.configuration.credentials['password'].nil?
-              login(Wagg.configuration.retrieval_credentials['username'].to_s, Wagg.configuration.retrieval_credentials['password'].to_s)
-              # TODO: Add cookie only if login is successful otherwise, do not replace cookie
-              #if login_successful
-              @cookie_jar = @agents[name].cookie_jar
-              #end
-            end
+            login(@agents[name], ::Wagg::Settings.configuration.credentials)
           end
 
-          custom_agent.pre_connect_hooks << lambda do |custom_agent, request|
-            sleep Wagg.configuration.retrieval_delay[name]
-          end
+          # custom_agent.pre_connect_hooks << lambda do |custom_agent, request|
+          #   sleep Wagg.configuration.retrieval_delay[name]
+          # end
 
-          custom_agent.cookie_jar = @cookie_jar unless @cookie_jar.nil?
+          #custom_agent.cookie_jar = @cookie_jar unless @cookie_jar.nil?
 
           @agents[name] = custom_agent
         end
@@ -50,10 +42,15 @@ module Wagg
         @agents[name]
       end
 
-      def get_content(uri, content_type='default')
+      def get_agent(name)
+        agent(name)
+      end
+      
+      def get_content(data, content_type='default')
 
         case content_type
         when 'author'
+          get_author(data)
         when 'comment'
         when 'news'
         when 'vote'
@@ -79,33 +76,54 @@ module Wagg
         content
       end
 
-      def get_agent(cookie)
-        # https://avdi.codes/preserving-session-with-mechanize/
-      end
+      def get_author(name)
+        agent = get_agent('author')
+        profile_uri = ::Wagg::Constants::Author::PROFILE_URL % {author:name}
+        content = agent.get profile_uri
+        #content.encoding = 'utf-8'
 
-      def setup_agent
+        content
+      end
+      
+
+      def setup(name='default')
         agent = Mechanize.new
-        agent.log = Logger.new ::Wagg::Settings.configuration.user_agent_log
         agent.user_agent_alias = ::Wagg::Settings.configuration.user_agent
+        if ::Wagg::Settings.configuration.user_agent_log
+          # TODO: Add name parameter to logpath somewhere
+          agent.log = Logger.new ::Wagg::Settings.configuration.user_agent_logpath
+        end
 
         agent
       end
 
-      def login(credentials=nil, uri=::Wagg::Constants::Site::LOGIN_URL)
+      def login(agent, credentials=nil)
+        cookies_path = ::Wagg::Constants::Retriever::COOKIES_PATH
 
-        unless credentials.nil?
-          login_page = agent.get uri
+        # if credentials.nil? && File.file?(cookies_path)
+        if File.file?(cookies_path)
+          agent.cookie_jar.load(cookies_path)
+        else
+          login_uri = ::Wagg::Constants::Site::LOGIN_URL
 
-          login_form_item = login_page.form_with(action: uri)
+          unless credentials.nil?
+            login_page = agent.get login_uri
 
-          login_form_item.field_with(name: 'username').value = credentials['username']
-          login_form_item.field_with(name: 'password').value = credentials['password']
+            login_form_item = login_page.form_with(action: login_uri)
 
-          agent.submit login_form_item
+            login_form_item.field_with(name: 'username').value = credentials['username']
+            login_form_item.field_with(name: 'password').value = credentials['password']
+
+            agent.submit login_form_item
+
+            # TODO: Add cookie only when login is successful else don't replace cookie
+            agent.cookie_jar.save(cookies_path, session: true)
+          end
         end
+
       end
 
-      # private :login, :setup_agent
+      private :login, :setup
 
     end
   end
