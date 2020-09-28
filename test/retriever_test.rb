@@ -68,4 +68,31 @@ class Retriever < MiniTest::Test
     json = author.to_json().to_s
   end
 
+  def test_get_id_news
+    id_extended_news = 'suspendida-navegacion-barcos-hasta-15-metros-eslora-evitar-orcas'
+    news = ::Wagg.news(id_extended_news)
+
+    news
+  end
+
+  def test_get_page_published_news_summaries
+    page_index = '3'
+    page_type = 'published'
+    page = ::Wagg.page(page_index, page_type)
+
+    page
+
+  end
+
+  def test_ing
+    require 'mini_racer'
+
+    context = MiniRacer::Context.new
+    context.eval 'var k_coef = new Array(); k_coef[1600814405] = 1.00; k_coef[1600814404] = 1.50; k_coef[1600813805] = parseInt(362); //-->'
+    a = context.eval 'Object.keys(k_coef);'
+    b = context.eval 'Object.values(k_coef);'
+    c = Hash[a.zip b]
+    c
+  end
+
 end

@@ -1,10 +1,20 @@
-# frozen_string_literal: true
+# encoding: UTF-8
+
 require 'wagg/utils/functions'
 
 module Wagg
   module Crawler
-    class Author
+    class AuthorSummary
       attr_reader :name
+
+      def initialize(name, id = nil)
+        @id = id
+        @name = name
+        @snapshot_timestamp = Time.now.utc
+      end
+    end
+
+    class Author < AuthorSummary
       attr_reader :fullname # Can be nil
       attr_reader :signup
       attr_reader :karma
@@ -17,12 +27,14 @@ module Wagg
 
       attr_reader :snapshot_timestamp
 
-      def initialize(name)
-        @id = nil
-        @name = name
+      def initialize(name, id = nil)
+        super(name, id)
+
         @snapshot_timestamp = Time.now.utc
         @raw_data = get_data(format(::Wagg::Constants::Author::PROFILE_URL, author:@name))
 
+        # Each parse_xxx() function issues one GET request
+        # TODO: Make these class methods rather than instance ones
         parse_profile()
         parse_subs_own()
         parse_subs_follow()
@@ -32,6 +44,7 @@ module Wagg
         parse_subs_follow()
         # parse_notes()
         parse_id()
+        @id = id
       end
 
       def id
@@ -50,7 +63,7 @@ module Wagg
         end
       end
 
-      def get_data(uri, retriever=nil, retriever_type=::Wagg::Constants::Retriever::RETRIEVAL_TYPE['author'])
+      def get_data(uri, retriever = nil, retriever_type = ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['author'])
         if retriever.nil?
           local_retriever = ::Wagg::Utils::Retriever.instance
           credentials = ::Wagg::Settings.configuration.credentials
@@ -181,7 +194,8 @@ module Wagg
               if matched_time.nil?
                 date = DateTime.strptime(matched_datetime[:date], '%d-%m-%Y %H:%M %Z')
               else
-                date = DateTime.strptime(matched_time[:time], '%H:%M %Z')
+                now = DateTime.now.new_offset # Current datetime in UTC
+                date = DateTime.strptime(now.strftime('%d-%m-%Y') + ' ' + matched_time[:time], '%d-%m-%Y %H:%M %Z')
               end
             end
             relationships[name] = date
@@ -212,7 +226,7 @@ module Wagg
 
       private :parse_relationships, :parse_subs
 
-      def as_json(options={})
+      def as_json(options = {})
         {
             type: self.class.name.downcase,
             timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp),

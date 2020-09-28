@@ -3,7 +3,9 @@
 require 'yaml'
 
 require 'wagg/version'
-require 'wagg/crawler/author'
+require_relative 'wagg/crawler/author'
+require_relative 'wagg/crawler/news'
+require_relative 'wagg/crawler/page'
 
 module Wagg
   #class Error < StandardError; end
@@ -13,8 +15,12 @@ module Wagg
       Crawler::Author.parse(name)
     end
 
-    def news(id)
-      false
+    def page(index, type)
+      Crawler::Page.parse(index, type)
+    end
+
+    def news(id_extended)
+      Crawler::News.parse(id_extended)
     end
 
     def comment(id)
