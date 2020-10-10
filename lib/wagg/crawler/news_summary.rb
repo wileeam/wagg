@@ -33,6 +33,15 @@ module Wagg
       # @!attribute [r] statistics
       #   @return [NewsStatistics] the statistics of the news
       attr_reader :statistics
+      # @!attribute [r] votes
+      #   @return [Array] the list of votes of the news
+      def votes
+        if @votes.nil?
+          @votes = ::Wagg::Crawler::NewsVotes.parse(@id)
+        else
+          @votes
+        end
+      end
 
       def initialize(raw_data, snapshot_timestamp = nil)
         @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
@@ -88,6 +97,12 @@ module Wagg
       def permalink
         format(::Wagg::Constants::News::MAIN_PERMALINK_URL % {permalink_id:@permalink_id})
       end
+
+      def parse_votes
+        @votes = ::Wagg::Crawler::NewsVotes.parse(@id) if !@id.nil? && @votes.nil?
+      end
+      
+      # Private methods below
 
       def parse_id(id_item)
         @id = ::Wagg::Utils::Functions.text_at_xpath(id_item, './@data-link-id')

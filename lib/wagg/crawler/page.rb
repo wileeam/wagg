@@ -8,14 +8,14 @@ module Wagg
 
       attr_reader :min_timestamp, :max_timestamp
 
-      def initialize(index, type='published')
+      def initialize(index, type = ::Wagg::Constants::News::STATUS_TYPE['published'])
         @index = index
 
         @snapshot_timestamp = Time.now.utc
         @raw_data = get_data(format(::Wagg::Constants::Page::MAIN_URL[type], page:@index))
 
-        parse_summaries(type)
-        #@news_list = parse_summaries(type)
+        #parse_summaries(type)
+        @news_list = parse_summaries(type)
         #@min_timestamp, @max_timestamp = parse_timestamps
       end
 
@@ -42,7 +42,7 @@ module Wagg
         page
       end
 
-      def parse_summaries(type)
+      def parse_summaries(type = ::Wagg::Constants::News::STATUS_TYPE['published'])
         if @raw_data.nil?
           page_uri = format(::Wagg::Constants::Page::MAIN_URL[type], page:@index)
           page_raw_data = get_data(page_uri)

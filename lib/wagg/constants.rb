@@ -22,8 +22,11 @@ module Wagg
     module Comment
       MAIN_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/c/', '%{id}'])
       HIDDEN_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/backend/', 'get_comment.php?id=%{id}'])
+
+      VOTES_QUERY_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/backend/', 'get_c_v.php?id=%{id}&p=%{page}'])
+
       STATUS_TYPE = { 'created' => 'created',
-                      'edited' => 'edited'}.freeze
+                      'edited' => 'edited' }.freeze
     end
 
     # News URL query templates
@@ -35,7 +38,6 @@ module Wagg
       COMMENTS_URL = File.join(MAIN_URL, ['/standard/', '%{page}'])
       COMMENTS_URL_MAX_PAGE = 100
       COMMENTS_RSS_URL = File.join(::Wagg::Constants::Site::MAIN_URL, '/comments_rss?id=%{id}')
-
 
       VOTES_QUERY_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/backend/', 'meneos.php?id=%{id}&p=%{page}'])
 
@@ -57,19 +59,23 @@ module Wagg
       MAIN_URL = { ::Wagg::Constants::News::STATUS_TYPE['published'] => File.join(::Wagg::Constants::Site::MAIN_URL, '/?page=%{page}'),
                    ::Wagg::Constants::News::STATUS_TYPE['queued'] => File.join(::Wagg::Constants::Site::MAIN_URL, '/queue?page=%{page}'),
                    ::Wagg::Constants::News::STATUS_TYPE['candidate'] => File.join(::Wagg::Constants::Site::MAIN_URL, '/queue?page=%{page}&meta=_popular'),
-                   ::Wagg::Constants::News::STATUS_TYPE['discarded'] => File.join(::Wagg::Constants::Site::MAIN_URL, '/queue?page=%{page}&meta=_discarded')}.freeze
+                   ::Wagg::Constants::News::STATUS_TYPE['discarded'] => File.join(::Wagg::Constants::Site::MAIN_URL, '/queue?page=%{page}&meta=_discarded') }.freeze
     end
     # Vote URL query templates
     module Vote
+      TYPE = { 'news' => 'news',
+               'comment' => 'comment'}.freeze
+
       NEWS_LIFETIME = 30*24*60*60 # 30 days
       COMMENT_LIFETIME = 30*24*60*60 # 30 days
 
       NEWS_REGEX = /\A(?<author>.+)\:[[:space:]](?:(?<datetime>\d{2}\-\d{2}\-\d{4}[[:space:]]\d{2}\:\d{2}[[:space:]]UTC)|(?<time>\d{2}\:\d{2}[[:space:]]UTC))(?:[[:space:]]valor\:[[:space:]](?<weight>\d{1,2}))?\z/
-      COMMENT_REGEX = /\A\z/
+      COMMENT_REGEX = /\A(?<author>.+)\:[[:space:]](?<datetime>\d{2}\/\d{2}\-\d{2}\:\d{2}\:\d{2})[[:space:]]karma\:[[:space:]](?<weight>\-?\d{1,2})\z/
 
+      SIGN = { 'positive' => 'positive',
+                    'negative' => 'negative' }.freeze
 
-      NEWS_TYPE = { 'positive' => 'positive',
-                    'negative' => 'negative'}.freeze
+      NEWS_SIGN = SIGN
       NEWS_NEGATIVE_WEIGHT = { 'antigua' => -2,
                                'bulo' => -10,
                                'cansina' => -3,
@@ -80,7 +86,9 @@ module Wagg
                                'microblogging' => -7,
                                'muro de pago' => -11,
                                'sensacionalista' => -4,
-                               'spam' => -5}.freeze
+                               'spam' => -5 }.freeze
+
+      COMMENT_SIGN = SIGN
     end
 
 

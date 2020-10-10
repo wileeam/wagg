@@ -45,16 +45,24 @@ module Wagg
       # @!attribute [r] statistics
       #   @return [CommentStatistics] the statistics of the comment
       attr_reader :statistics
-
+      # @!attribute [r] votes
+      #   @return [Array] the list of votes of the comment
+      def votes
+        if @votes.nil?
+          @votes = ::Wagg::Crawler::CommentVotes.parse(@id)
+        else
+          @votes
+        end
+      end
 
       def initialize(raw_data, mode='rss', snapshot_timestamp = nil)
         @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
         @raw_data = raw_data
 
         case mode
-        when 'rss'
+        when /\Arss\z/
           parse_rss(raw_data)
-        when 'html'
+        when /\Ahtml\z/
           parse_html(raw_data)
         else
           raise 'Comment parse mode not supported unfortunately.'
@@ -95,6 +103,12 @@ module Wagg
       def permalink
         format(::Wagg::Constants::Comment::MAIN_URL % {id:@id})
       end
+
+      def parse_votes
+        @votes = ::Wagg::Crawler::CommentVotes.parse(@id) if !@id.nil? && @votes.nil?
+      end
+
+      # Private methods below
 
       def parse_html(raw_data)
         index_item = ::Wagg::Utils::Functions.text_at_xpath(raw_data, './div/@id')
@@ -167,7 +181,93 @@ module Wagg
         body_item.inner_html.strip
       end
 
-      private :parse_hidden_body
+      private :parse_html, :parse_rss, :parse_hidden_body
+    end
+
+    class ListComments
+      attr_reader :id
+      attr_reader :comments
+      alias :list :comments
+      def first
+        @comments.first
+      end
+      def last
+        @comments.last
+      end
+
+      def initialize(id, num_comments, mode = 'rss')
+        puts @id
+        @id = id
+        parse(id, num_comments, mode)
+      end
+
+      def get_data(uri, retriever = nil, retriever_type = ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['comment'])
+        if retriever.nil?
+          local_retriever = ::Wagg::Utils::Retriever.instance
+          credentials = ::Wagg::Settings.configuration.credentials
+        else
+          credentials = ::Wagg::Settings.configuration.credentials
+        end
+
+        agent = local_retriever.agent(retriever_type)
+        page = agent.get uri
+        # page.encoding = 'utf-8'
+        # page.body.force_encoding('utf-8')
+        page
+      end
+
+      def as_hash
+        keys = @comments.map { |comment| comment.index }
+        values = @comments
+
+        Hash[keys.zip(values)]
+      end
+
+      # Private methods below
+
+      def parse(id_news, num_comments, mode = 'rss')
+        comments_list = []
+
+        case mode
+        when /\Arss\z/
+          snapshot_timestamp = Time.now.utc
+
+          assert_match(/\A(?<id>\d+)\z/, id_news)
+
+          comments_rss_uri = format(::Wagg::Constants::News::COMMENTS_RSS_URL, id: id_news)
+          comments_xml = HTTParty.get(comments_rss_uri).body
+          comments_rss = Feedjira.parse(comments_xml, parser: Feedjira::Parser::Wagg::CommentsList)
+          comments_rss.entries.each do |comment_rss|
+            comment = ::Wagg::Crawler::Comment.new(comment_rss, 'rss', snapshot_timestamp)
+            # comments_hash[comment.index] = comment
+            comments_list << comment
+          end
+        when /\Ahtml\z/
+          num_pages, remaining_comments = num_comments.divmod(::Wagg::Constants::News::COMMENTS_URL_MAX_PAGE)
+          num_pages += 1 if remaining_comments > 0
+          (1..num_pages).each do |page|
+            snapshot_timestamp = Time.now.utc
+
+            # assert_match(/\A(?<id>\d+)\z/, id_news)
+
+            comments_html_uri = format(::Wagg::Constants::News::COMMENTS_URL, {id_extended: id_news, page: page})
+            comments_html_raw_data = get_data(comments_html_uri)
+            comments_html_list_items = comments_html_raw_data.css('div#newswrap > div#comments-top > ol > li')
+            comments_html_list_items.each do |comment_item|
+              comment = ::Wagg::Crawler::Comment.new(comment_item, 'html', snapshot_timestamp)
+              # comments_hash[comment.index] = comment
+              comments_list << comment
+            end
+          end
+
+        else
+          raise 'News\' comments parsing mode not supported yet unfortunately'
+        end
+
+        @comments = comments_list
+      end
+
+      private :parse
     end
   end
 end
