@@ -3,8 +3,12 @@
 require 'yaml'
 
 require 'wagg/version'
+
+require 'wagg/utils/retriever'
+
 require_relative 'wagg/crawler/author'
 require_relative 'wagg/crawler/news'
+require_relative 'wagg/crawler/comment'
 require_relative 'wagg/crawler/page'
 
 module Wagg
@@ -19,8 +23,8 @@ module Wagg
       Crawler::Page.parse(index, type)
     end
 
-    def news(id_extended)
-      Crawler::News.parse(id_extended)
+    def news(id_extended, comments_mode = 'rss')
+      Crawler::News.parse(id_extended, comments_mode)
     end
 
     def comment(id)

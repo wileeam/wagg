@@ -1,6 +1,5 @@
 # encoding: UTF-8
 
-
 module Wagg
   module Crawler
     class Page

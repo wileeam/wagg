@@ -13,14 +13,17 @@ module Wagg
       #   @return [String] the title of the news
       attr_reader :title
       # @!attribute [r] author
-      #   @return [AuthorSummary] the author of the news
+      #   @return [FixedAuthor] the author of the news
       attr_reader :author
       # @!attribute [r] link
-      #   @return [String] the link of the news
+      #   @return [String] the link to the actual news
       attr_reader :link
-      # @!attribute [r] description
-      #   @return [String] the description of the news
-      attr_reader :description
+      # @!attribute [r] permalink_id
+      #   @return [String] the id to the permalink of the news
+      attr_reader :permalink_id
+      # @!attribute [r] body
+      #   @return [String] the body of the news
+      attr_reader :body
       # @!attribute [r] timestamps
       #   @return [Hash] the creation and publication (if available) timestamps of the news
       attr_reader :timestamps
@@ -33,7 +36,6 @@ module Wagg
 
       def initialize(raw_data, snapshot_timestamp = nil)
         @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
-        #@raw_data = raw_data.nil? ? get_data(format(::Wagg::Constants::News::MAIN_URL, id_extended: @id_extended)) : raw_data
         @raw_data = raw_data
 
         # div.news-body
@@ -53,11 +55,12 @@ module Wagg
         # div.news-body > div.news-details
         details_item = @raw_data.css('div.news-body > div.news-details')
         parse_statistics(shakeit_item, details_item)
+        parse_permalink(details_item)
       end
 
       class << self
-        def parse(raw_data, timestamp)
-          news_summary = NewsSummary.new(raw_data, timestamp)
+        def parse(raw_data, snapshot_timestamp)
+          news_summary = NewsSummary.new(raw_data, snapshot_timestamp)
 
           news_summary
         end
@@ -78,8 +81,12 @@ module Wagg
         page
       end
 
-      def get_uri
-        ::Wagg::Constants::News::MAIN_URL % {id_extended:@id_extended}
+      def uri
+        format(::Wagg::Constants::News::MAIN_URL % {id_extended:@id_extended})
+      end
+
+      def permalink
+        format(::Wagg::Constants::News::MAIN_PERMALINK_URL % {permalink_id:@permalink_id})
       end
 
       def parse_id(id_item)
@@ -110,7 +117,7 @@ module Wagg
         author_name_item = ::Wagg::Utils::Functions.text_at_xpath(author_timestamps_item, './a/@href')
         author_name_matched = author_name_item.match(/\A\/user\/(?<author_name>.+)\z/)
         author_name = author_name_matched[:author_name]
-        @author = ::Wagg::Crawler::AuthorSummary.new(author_name, author_id)
+        @author = ::Wagg::Crawler::FixedAuthor.new(author_name, author_id)
         timestamps_items = author_timestamps_item.xpath('./span[contains(concat(" ",normalize-space(@class)," ")," visible ")]')
         timestamps = Hash.new
         timestamps_items.each do |timestamp_item|
@@ -125,8 +132,8 @@ module Wagg
         end
         @timestamps = timestamps
 
-        description_item = content_item.css('div.news-content')
-        @description = ::Wagg::Utils::Functions.text_at_xpath(description_item, './text()')
+        body_item = content_item.css('div.news-content')
+        @body = ::Wagg::Utils::Functions.text_at_xpath(body_item, './text()')
       end
 
       def parse_statistics(shakeit_item, details_up_item)
@@ -163,6 +170,15 @@ module Wagg
         @statistics = statistics
       end
 
+      def parse_permalink(details_up_item)
+        permalink_item = details_up_item.css('div.news-details-main > div > ul > li > button.share-link')
+        permalink_uri = ::Wagg::Utils::Functions.text_at_xpath(permalink_item, './@data-clipboard-text')
+        permalink_matched = permalink_uri.match(/\Ahttp\:\/\/menea\.me\/(?<permalink_id>[[:alnum:]]+)\z/)
+
+        @permalink_id = permalink_matched[:permalink_id]
+      end
+
+      private :parse_id, :parse_id_extended, :parse_content, :parse_statistics, :parse_permalink
     end
   end
 end

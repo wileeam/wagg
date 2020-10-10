@@ -4,17 +4,33 @@ require 'wagg/utils/functions'
 
 module Wagg
   module Crawler
-    class AuthorSummary
+    class FixedAuthor
+      # @!attribute [r] name
+      #   @return [String] the name of the author
       attr_reader :name
+      # @!attribute [r] id
+      #   @return [String] the unique id of the author
+      attr_reader :id
 
-      def initialize(name, id = nil)
-        @id = id
+      def initialize(name, id = nil, snapshot_timestamp = nil)
         @name = name
-        @snapshot_timestamp = Time.now.utc
+        if disabled
+          id_matched = @name.match(/^--(?<id>\d+)--$/)
+          @id = id_matched[:id]
+        else
+          @id = id
+        end
+        
+        @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+      end
+
+
+      def disabled
+        @name.match?(/^--(?<id>\d+)--$/)
       end
     end
 
-    class Author < AuthorSummary
+    class Author < FixedAuthor
       attr_reader :fullname # Can be nil
       attr_reader :signup
       attr_reader :karma
@@ -27,14 +43,27 @@ module Wagg
 
       attr_reader :snapshot_timestamp
 
-      def initialize(name, id = nil)
+      def initialize(name, id = nil, snapshot_timestamp = nil)
         super(name, id)
 
-        @snapshot_timestamp = Time.now.utc
-        @raw_data = get_data(format(::Wagg::Constants::Author::PROFILE_URL, author:@name))
+        author_uri = format(::Wagg::Constants::Author::PROFILE_URL, author: @name)
+        @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+        @raw_data = get_data(author_uri)
+
+        # When a user does not exist (@name is not valid) the site redirects to the frontpage
+        raise('Author does not exist') if author_uri != @raw_data.uri.to_s
 
         # Each parse_xxx() function issues one GET request
-        # TODO: Make these class methods rather than instance ones
+        # TODO: Make these class methods rather than instance ones?
+        if id.nil?
+          if disabled
+            parse_id()
+          else
+            parse_id()
+          end
+        else
+          @id = id
+        end
         parse_profile()
         parse_subs_own()
         parse_subs_follow()
@@ -43,16 +72,7 @@ module Wagg
         parse_subs_own()
         parse_subs_follow()
         # parse_notes()
-        parse_id()
-        @id = id
-      end
 
-      def id
-        @id
-      end
-
-      def disabled
-        @name.match?(/^--(?<id>\d+)--$/)
       end
 
       class << self
@@ -81,15 +101,17 @@ module Wagg
       def parse_id
         id_item = @raw_data.css('#avatar')
         avatar_source_item = ::Wagg::Utils::Functions.text_at_xpath(id_item,'./@src')
-        matched_id = avatar_source_item.match(/\Ahttps\:\/{2}mnmstatic\.net\/cache\/\d{2}\/\d{2}\/(?<id>\d+)\-\d+\-80\.jpg\z/)
 
-        unless matched_id.nil?
+        # matched_id = avatar_source_item.match(/\Ahttps\:\/{2}mnmstatic\.net\/cache\/\d{2}\/\d{2}\/(?<id>\d+)\-\d+\-\d{2}\.jpg\z/)
+        # @id = matched_id[:id] unless matched_id.nil?
+        if avatar_source_item.match?(/\Ahttps\:\/{2}mnmstatic\.net\/cache\/\d{2}\/\d{2}\/(?<id>\d+)\-\d+\-\d{2}\.jpg\z/)
           @id = matched_id[:id]
         end
+
       end
 
       def parse_profile
-        profile_uri = format(::Wagg::Constants::Author::PROFILE_URL, author:@name)
+        profile_uri = format(::Wagg::Constants::Author::PROFILE_URL, author: @name)
         profile_raw_data = get_data(profile_uri)
 
         profile_table_items = profile_raw_data.css('div#container > section > div.contents-layout > div.contents-body > table tr')
@@ -132,7 +154,7 @@ module Wagg
           end
           if profile_items.key?(profile_entropy_key)
             profile_entropy = ::Wagg::Utils::Functions.text_at_css(profile_items[profile_entropy_key])
-            matched_entropy = profile_entropy.match(/\A(?<entropy>\d{1,2})%\z/)
+            matched_entropy = profile_entropy.match(/\A(?<entropy>\d{1,3})%\z/)
             @entropy = matched_entropy[:entropy].to_i
           end
 
@@ -146,25 +168,25 @@ module Wagg
       end
 
       def parse_friends
-        friends_uri = ::Wagg::Constants::Author::FRIENDS_URL % {author:@name}
+        friends_uri = ::Wagg::Constants::Author::FRIENDS_URL % {author: @name}
         friends = parse_relationships(friends_uri)
         @friends = friends
       end
 
       def parse_friends_of
-        friends_of_uri = ::Wagg::Constants::Author::FRIENDS_OF_URL % {author:@name}
+        friends_of_uri = ::Wagg::Constants::Author::FRIENDS_OF_URL % {author: @name}
         friends_of = parse_relationships(friends_of_uri)
         @friends_of = friends_of
       end
 
       def parse_subs_own
-        subs_own_uri = ::Wagg::Constants::Author::SUBS_OWN_URL % {author:@name}
+        subs_own_uri = ::Wagg::Constants::Author::SUBS_OWN_URL % {author: @name}
         subs_own = parse_subs(subs_own_uri)
         @subs_own = subs_own
       end
 
       def parse_subs_follow
-        subs_follow_uri = ::Wagg::Constants::Author::SUBS_FOLLOW_URL % {author:@name}
+        subs_follow_uri = ::Wagg::Constants::Author::SUBS_FOLLOW_URL % {author: @name}
         subs_follow = parse_subs(subs_follow_uri)
         @subs_follow = subs_follow
       end
@@ -179,7 +201,7 @@ module Wagg
 
         relationships = Hash.new
         if relationships_table_items.at_css('p.info').nil?
-          # relationships_items = friends_table_items.search('.//div[contains(concat(" ", normalize-space(@class), " "), " friends-item ")]')
+          # relationships_items = friends_table_items.search('.//div[contains(concat(' ", normalize-space(@class), " "), " friends-item ")]')
           relationships_items = relationships_table_items.css('div.friends-item')
           # We are friendly!!!
           relationships_items.each do |relationship|

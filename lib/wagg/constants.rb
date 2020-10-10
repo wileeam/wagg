@@ -20,14 +20,24 @@ module Wagg
 
     # Comment URL query templates
     module Comment
-      # TODO: Do me
+      MAIN_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/c/', '%{id}'])
+      HIDDEN_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/backend/', 'get_comment.php?id=%{id}'])
+      STATUS_TYPE = { 'created' => 'created',
+                      'edited' => 'edited'}.freeze
     end
 
     # News URL query templates
     module News
       MAIN_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/story/', '%{id_extended}'])
+      MAIN_PERMALINK_URL = File.join('http://menea.me', %{permalink_id})
       LOG_URL = File.join(MAIN_URL, '/log')
-      #NEWS_COMMENTS_RSS_URL = SITE_URL + '/comments_rss?id=%{id}'
+
+      COMMENTS_URL = File.join(MAIN_URL, ['/standard/', '%{page}'])
+      COMMENTS_URL_MAX_PAGE = 100
+      COMMENTS_RSS_URL = File.join(::Wagg::Constants::Site::MAIN_URL, '/comments_rss?id=%{id}')
+
+
+      VOTES_QUERY_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/backend/', 'meneos.php?id=%{id}&p=%{page}'])
 
       STATUS_TYPE = { 'discarded' => 'discarded',
                       'sent' => 'sent',
@@ -53,6 +63,24 @@ module Wagg
     module Vote
       NEWS_LIFETIME = 30*24*60*60 # 30 days
       COMMENT_LIFETIME = 30*24*60*60 # 30 days
+
+      NEWS_REGEX = /\A(?<author>.+)\:[[:space:]](?:(?<datetime>\d{2}\-\d{2}\-\d{4}[[:space:]]\d{2}\:\d{2}[[:space:]]UTC)|(?<time>\d{2}\:\d{2}[[:space:]]UTC))(?:[[:space:]]valor\:[[:space:]](?<weight>\d{1,2}))?\z/
+      COMMENT_REGEX = /\A\z/
+
+
+      NEWS_TYPE = { 'positive' => 'positive',
+                    'negative' => 'negative'}.freeze
+      NEWS_NEGATIVE_WEIGHT = { 'antigua' => -2,
+                               'bulo' => -10,
+                               'cansina' => -3,
+                               'copia/plagio' => -9,
+                               'duplicada' => -6,
+                               'errónea' => -8,
+                               'irrelevante' => -1,
+                               'microblogging' => -7,
+                               'muro de pago' => -11,
+                               'sensacionalista' => -4,
+                               'spam' => -5}.freeze
     end
 
 

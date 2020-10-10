@@ -68,15 +68,21 @@ class Retriever < MiniTest::Test
     json = author.to_json().to_s
   end
 
-  def test_get_id_news
-    id_extended_news = 'suspendida-navegacion-barcos-hasta-15-metros-eslora-evitar-orcas'
+  def test_id_of_news
+    id_extended_news = 'informe-policial-acusa-exsecretario-estado-hacienda-cinco'
+    news = ::Wagg.news(id_extended_news)
+
+    assert_equal(news.id, '3386902')
+  end
+
+  def test_get_something
+    id_extended_news = 'pp-condecora-perros-policias-interior-perros-salvan-vidas-hagan'
     news = ::Wagg.news(id_extended_news)
 
     news
   end
-
   def test_get_page_published_news_summaries
-    page_index = '3'
+    page_index = '1'
     page_type = 'published'
     page = ::Wagg.page(page_index, page_type)
 
@@ -94,5 +100,24 @@ class Retriever < MiniTest::Test
     c = Hash[a.zip b]
     c
   end
+
+  def test_get_news_comments
+    id_extended_news = 'informe-policial-acusa-exsecretario-estado-hacienda-cinco'
+    news = ::Wagg.news(id_extended_news, 'html')
+
+    assert_equal(news.id, '3386902')
+  end
+
+  def test_get_hidden_comment
+    id_extended_news = 'nombres-102-000-victimas-franquismo-extremadura-andalucia-norte'
+    index_hidden_comment = 1
+    news = ::Wagg.news(id_extended_news, 'html')
+
+    expected_hidden_body = '<p>¡A ver! ... ¡de prisa un "Paracuellos" en Andalucia! ... o el trifachito andaluz se va a poner nervioso. </p>'
+    actual_hidden_body = news.comments[index_hidden_comment].body
+
+    assert_equal(actual_hidden_body, expected_hidden_body)
+  end
+
 
 end
