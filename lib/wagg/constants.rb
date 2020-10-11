@@ -3,7 +3,7 @@
 module Wagg
   module Constants
     module Site
-      MAIN_URL = 'https://www.meneame.net'
+      MAIN_URL = 'https://www.meneame.net'.freeze
       LOGIN_URL = File.join(MAIN_URL + '/login')
     end
 
@@ -16,6 +16,8 @@ module Wagg
       SUBS_OWN_URL = File.join(MAIN_URL, '/subs')
       SUBS_FOLLOW_URL = File.join(MAIN_URL, '/subs_follow')
       HISTORY_URL = File.join(MAIN_URL, '/history')
+      
+      AVATAR_REGEX = %r{\Ahttps\:/{2}mnmstatic\.net/cache/\d{2}/[[:alnum:]]{2}/(?<id>\d+)\-(?<timestamp>\d+)\-\d{2}\.jpg\z}.freeze
     end
 
     # Comment URL query templates
@@ -69,8 +71,8 @@ module Wagg
       NEWS_LIFETIME = 30*24*60*60 # 30 days
       COMMENT_LIFETIME = 30*24*60*60 # 30 days
 
-      NEWS_REGEX = /\A(?<author>.+)\:[[:space:]](?:(?<datetime>\d{2}\-\d{2}\-\d{4}[[:space:]]\d{2}\:\d{2}[[:space:]]UTC)|(?<time>\d{2}\:\d{2}[[:space:]]UTC))(?:[[:space:]]valor\:[[:space:]](?<weight>\d{1,2}))?\z/
-      COMMENT_REGEX = /\A(?<author>.+)\:[[:space:]](?<datetime>\d{2}\/\d{2}\-\d{2}\:\d{2}\:\d{2})[[:space:]]karma\:[[:space:]](?<weight>\-?\d{1,2})\z/
+      NEWS_REGEX = /\A(?<author>.+)\:[[:space:]](?:(?<datetime>\d{2}\-\d{2}\-\d{4}[[:space:]]\d{2}\:\d{2}[[:space:]]UTC)|(?<time>\d{2}\:\d{2}[[:space:]]UTC))(?:[[:space:]]valor\:[[:space:]](?<weight>\d{1,2}))?\z/.freeze
+      COMMENT_REGEX = %r{\A(?<author>.+)\:[[:space:]](?<datetime>\d{2}/\d{2}\-\d{2}\:\d{2}\:\d{2})[[:space:]]karma\:[[:space:]](?<weight>\-?\d{1,2})\z}.freeze
 
       SIGN = { 'positive' => 'positive',
                     'negative' => 'negative' }.freeze
@@ -93,8 +95,8 @@ module Wagg
 
 
     module Retriever
-      CREDENTIALS_PATH = 'config/secrets.yml'
-      COOKIES_PATH = 'config/cookies.yml'
+      CREDENTIALS_PATH = 'config/secrets.yml'.freeze
+      COOKIES_PATH = 'config/cookies.yml'.freeze
 
       RETRIEVAL_TYPE = { 'default' => 'default',
                          'page' => 'page',

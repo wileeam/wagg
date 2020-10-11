@@ -102,9 +102,8 @@ module Wagg
         id_item = @raw_data.css('#avatar')
         avatar_source_item = ::Wagg::Utils::Functions.text_at_xpath(id_item,'./@src')
 
-        # matched_id = avatar_source_item.match(/\Ahttps\:\/{2}mnmstatic\.net\/cache\/\d{2}\/\d{2}\/(?<id>\d+)\-\d+\-\d{2}\.jpg\z/)
-        # @id = matched_id[:id] unless matched_id.nil?
-        if avatar_source_item.match?(/\Ahttps\:\/{2}mnmstatic\.net\/cache\/\d{2}\/\d{2}\/(?<id>\d+)\-\d+\-\d{2}\.jpg\z/)
+        if avatar_source_item.match?(::Wagg::Constants::Author::AVATAR_REGEX)
+          matched_id = avatar_source_item.match(::Wagg::Constants::Author::AVATAR_REGEX)
           @id = matched_id[:id]
         end
 

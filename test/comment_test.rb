@@ -21,7 +21,7 @@ class CommentTest < MiniTest::Test
     news = ::Wagg.news(id_extended_news, 'html')
 
     expected_hidden_body = '<p>¡A ver! ... ¡de prisa un "Paracuellos" en Andalucia! ... o el trifachito andaluz se va a poner nervioso. </p>'
-    actual_hidden_body = news.comments[index_hidden_comment].body
+    actual_hidden_body = news.comments.as_hash[index_hidden_comment].body
 
     assert_equal(actual_hidden_body, expected_hidden_body)
   end

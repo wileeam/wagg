@@ -96,7 +96,7 @@ module Wagg
             author_name_matched = author_name_item.match(%r{\A/user/(?<author>.+)\z})
             author_name = author_name_matched[:author]
             author_id_item = ::Wagg::Utils::Functions.text_at_xpath(vote_item, './a/img/@src')
-            author_id_matched = author_id_item.match(%r{\Ahttps\:/{2}mnmstatic\.net/cache/\d{2}/[[:alnum:]]{2}/(?<id>\d+)\-(?<timestamp>\d+)\-\d{2}\.jpg\z})
+            author_id_matched = author_id_item.match(::Wagg::Constants::Author::AVATAR_REGEX)
             author_id = (author_id_matched[:id] unless author_id_matched.nil? || author_id_matched[:id].nil?)
 
             timestamp_weight_item = ::Wagg::Utils::Functions.text_at_xpath(vote_item, './a/@title')

@@ -232,8 +232,6 @@ module Wagg
         when /\Arss\z/
           snapshot_timestamp = Time.now.utc
 
-          assert_match(/\A(?<id>\d+)\z/, id_news)
-
           comments_rss_uri = format(::Wagg::Constants::News::COMMENTS_RSS_URL, id: id_news)
           comments_xml = HTTParty.get(comments_rss_uri).body
           comments_rss = Feedjira.parse(comments_xml, parser: Feedjira::Parser::Wagg::CommentsList)
