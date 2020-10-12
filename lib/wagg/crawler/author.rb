@@ -20,10 +20,9 @@ module Wagg
         else
           @id = id
         end
-        
+
         @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
       end
-
 
       def disabled
         @name.match?(/^--(?<id>\d+)--$/)
@@ -80,6 +79,25 @@ module Wagg
           author = Author.new(name)
 
           author
+        end
+
+        def get_id(img_item)
+          # Guarantee that we have a Nokogiri::XML::Element object parameter
+          # Make sure that we have the right Nokogiri::XML::Element
+          unless img_item.respond_to?(:classes) && img_item.classes.include?('avatar')
+            raise 'img_item is not a Nokogiri::XML::Element'
+          end
+
+          id_item = ::Wagg::Utils::Functions.text_at_xpath(img_item, './@src')
+          id_matched = id_item.match(::Wagg::Constants::Author::AVATAR_REGEX)
+          # id = (id_matched[:id] unless id_matched.nil? || id_matched[:id].nil?)
+          if id_matched.nil? || id_matched[:id].nil?
+            id = nil
+          else
+            id = id_matched[:id]
+          end
+
+          id
         end
       end
 

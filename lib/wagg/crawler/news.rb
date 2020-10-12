@@ -62,7 +62,7 @@ module Wagg
         summary_item = @raw_data.css('div#newswrap > div.news-summary')
 
         # parse_summary
-        super(summary_item, snapshot_timestamp)
+        super(summary_item, @snapshot_timestamp)
 
         parse_log
         parse_votes

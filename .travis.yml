@@ -4,4 +4,4 @@ rvm:
  - 2.7.1
 script:
  — bundle install
- — bundle exec rake test
+ - bundle exec rake test

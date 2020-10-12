@@ -125,6 +125,7 @@ module Wagg
 
         author_timestamps_item = content_item.css('div.news-submitted')
         # Author's id
+        # We don't use ::Wagg::Crawler::Author.get_id() beccause './a/@class' contains the author's id directly
         author_id_items = ::Wagg::Utils::Functions.text_at_xpath(author_timestamps_item, './a/@class')
         author_id_matched = author_id_items.match(/\A.+\su\:(?<author_id>\d+)\z/)
         author_id = author_id_matched[:author_id]

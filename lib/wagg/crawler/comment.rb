@@ -122,9 +122,11 @@ module Wagg
         header_item = raw_data.css('div > div.comment-body > div.comment-header')
         author_name_item = header_item.css('a.username')
         author_name = ::Wagg::Utils::Functions.text_at_xpath(author_name_item, './@href')
-        author_matched = author_name.match(%r{\A\/user\/(?<author>.+)\/commented\z})
-        author = author_matched[:author]
-        @author = ::Wagg::Crawler::FixedAuthor.new(author)
+        author_name_matched = author_name.match(%r{\A\/user\/(?<author>.+)\/commented\z})
+        author_name = author_name_matched[:author]
+        author_id_item = header_item.at_css('img')
+        author_id = ::Wagg::Crawler::Author.get_id(author_id_item)
+        @author = ::Wagg::Crawler::FixedAuthor.new(author_name, author_id, @snapshot_timestamp)
 
         timestamps = Hash.new
         timestamps_items = header_item.css('span.ts')
@@ -245,8 +247,6 @@ module Wagg
           num_pages += 1 if remaining_comments > 0
           (1..num_pages).each do |page|
             snapshot_timestamp = Time.now.utc
-
-            # assert_match(/\A(?<id>\d+)\z/, id_news)
 
             comments_html_uri = format(::Wagg::Constants::News::COMMENTS_URL, {id_extended: id_news, page: page})
             comments_html_raw_data = get_data(comments_html_uri)
