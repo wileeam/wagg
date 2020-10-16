@@ -14,7 +14,6 @@ module Wagg
         @snapshot_timestamp = Time.now.utc
         @raw_data = get_data(format(::Wagg::Constants::Page::MAIN_URL[type], page:@index))
 
-        #parse_summaries(type)
         @news_list = parse_summaries(type)
         #@min_timestamp, @max_timestamp = parse_timestamps
       end
