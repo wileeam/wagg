@@ -34,13 +34,15 @@ class Retriever < MiniTest::Test
     page = ::Wagg.page(page_index, page_type)
 
     page
-
   end
 
   def test_get_news_comments
     id_extended_news = 'informe-policial-acusa-exsecretario-estado-hacienda-cinco'
     news = ::Wagg.news(id_extended_news, 'html')
+    
+    expected_news_id = 3386902
+    actual_news_id = news.id
 
-    assert_equal(news.id, '3386902')
+    assert_equal(expected_news_id, actual_news_id)
   end
 end
