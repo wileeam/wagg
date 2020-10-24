@@ -43,6 +43,10 @@ module Wagg
         end
       end
 
+      def snapshot_timestamp
+        @snapshot_timestamp
+      end
+
       def initialize(raw_data, snapshot_timestamp = nil, json_data = nil)
         if json_data.nil?
           @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp

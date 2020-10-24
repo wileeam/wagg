@@ -120,8 +120,8 @@ module Wagg
       # @param [String] comments_mode
       # @param [nil] snapshot_timestamp
       # @param [String] json_data
-      def initialize(id_extended, comments_mode = 'rss', snapshot_timestamp = nil, json_data = nil)
-        if json_data.nil?
+      def initialize(id_extended, comments_mode = 'rss', snapshot_timestamp = nil, json_data = nil, summary_object = nil)
+        if json_data.nil? && summary_object.nil?
           @id_extended = id_extended
           @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
           @raw_data = get_data(format(::Wagg::Constants::News::MAIN_URL, id_extended: @id_extended))
@@ -138,7 +138,7 @@ module Wagg
           parse_log
           parse_votes
           parse_comments(comments_mode)
-        else
+        elsif summary_object.nil?
           @id = json_data.id
           @id_extended = json_data.id_extended
           @title = json_data.title
@@ -149,9 +149,24 @@ module Wagg
           @timestamps = json_data.timestamps.to_h.map { |k, v| [k, Time.at(v).utc.to_datetime] }.to_h
           @category = json_data.category
           @statistics = ::Wagg::Crawler::NewsStatistics.from_json(json_data.statistics)
+
           @tags = json_data.tags
           @karma_events = json_data.karma_events.to_h.map { |k, v| [k.to_s.to_i, v.to_h] }.to_h
           @log_events = json_data.log_events.to_h.map { |k, v| [k.to_s.to_i, v.to_h] }.to_h
+
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+        else
+          @id = summary_object.id
+          @id_extended = summary_object.id_extended
+          @title = summary_object.title
+          @author = summary_object.author
+          @link = summary_object.link
+          @permalink_id = summary_object.permalink_id
+          @body = summary_object.body
+          @timestamps = summary_object.timestamps
+          @category = summary_object.category
+          @statistics = summary_object.statistics
+          # @votes = summary_object.votes
 
           @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
         end
@@ -173,10 +188,17 @@ module Wagg
 
             snapshot_timestamp = Time.at(os_object.timestamp).utc
 
-            News.new(nil, nil, snapshot_timestamp, data)
+            News.new(nil, nil, snapshot_timestamp, data, nil)
           end
         end
 
+        def from_summary(summary)
+          if summary.class.name.split('::').last == 'NewsSummary'
+            snapshot_timestamp = summary.snapshot_timestamp
+
+            News.new(nil, nil, snapshot_timestamp, nil, summary)
+          end
+        end
       end
 
       def get_data(uri, retriever = nil, retriever_type = ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['news'])
