@@ -188,6 +188,7 @@ module Wagg
 
     class ListComments
       attr_reader :id
+      attr_reader :parser
       attr_reader :comments
       alias :list :comments
       def first
@@ -198,8 +199,8 @@ module Wagg
       end
 
       def initialize(id, num_comments, mode = 'rss')
-        puts @id
         @id = id
+        @parser = mode
         parse(id, num_comments, mode)
       end
 

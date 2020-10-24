@@ -33,16 +33,29 @@ module Wagg
         dt.strftime(format)
       end
 
+      def self.datetime_to_unix(dt)
+        dt.strftime('%s').to_i
+      end
+
       def self.timestamp_to_text(t, format='%Y-%m-%d %H:%M:%S%z')
         t.strftime(format)
       end
 
-      def self.hash_str_datetime_to_json(hash)
+      def self.timestamp_to_unix(t)
+        t.strftime('%s').to_i
+      end
+
+      def self.hash_str_datetime_to_json(hash, unixtime = false)
         h = {}
         hash.each do |key, datetime|
           h[key] = nil
           unless datetime.nil?
-            h[key] = datetime_to_text(datetime)
+            if unixtime
+              h[key] = datetime_to_unix(datetime)
+            else
+              h[key] = datetime_to_text(datetime)
+            end
+            
           end
         end
 

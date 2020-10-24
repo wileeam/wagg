@@ -4,74 +4,155 @@ require 'wagg/utils/functions'
 
 module Wagg
   module Crawler
+    # Facilitates a thin version of an Author
+    #
+    # @see Author
     class FixedAuthor
       # @!attribute [r] name
       #   @return [String] the name of the author
       attr_reader :name
       # @!attribute [r] id
-      #   @return [String] the unique id of the author
+      #   @return [Integer] the unique id of the author
       attr_reader :id
 
-      def initialize(name, id = nil, snapshot_timestamp = nil)
-        @name = name
-        if disabled
-          id_matched = @name.match(/^--(?<id>\d+)--$/)
-          @id = id_matched[:id]
+      # @param name [String] the name of the author
+      # @param id [Integer] the unique id of the author
+      # @param snapshot_timestamp [Time] the timestamp of the snapshot
+      def initialize(name, id = nil, snapshot_timestamp = nil, json_data = nil)
+        if json_data.nil?
+          @name = name
+          if disabled
+            id_matched = @name.match(::Wagg::Constants::Author::DISABLED_REGEX)
+            @id = id_matched[:id].to_i
+          else
+            @id = id.nil? ? nil : id.to_i
+          end
+
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
         else
-          @id = id
+          @name = json_data.name
+          @id = json_data.id.nil? ? nil : json_data.id.to_i
+
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
         end
-
-        @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
       end
 
+      class << self
+        def from_json(string)
+          os_object = JSON.parse(string, object_class: OpenStruct)
+
+          # Some validation that we have the right object
+          if os_object.type == self.name.split('::').last
+            data = os_object.data
+
+            name = data.name
+            id = data.id
+            snapshot_timestamp = Time.at(os_object.timestamp).utc
+
+            FixedAuthor.new(name, id, snapshot_timestamp, data)
+          end
+        end
+      end
+
+      # Clarifies whether author is disabled or not
+      #
+      # @return [Boolean] returns the disabled status
       def disabled
-        @name.match?(/^--(?<id>\d+)--$/)
+        @name.match?(::Wagg::Constants::Author::DISABLED_REGEX)
       end
+
+      def as_json(options = {})
+        {
+            type: self.class.name.split('::').last,
+            timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
+            data: {
+              id: @id.to_i,
+              name: @name
+            }
+        }
+      end
+
+      def to_json(*options)
+        as_json(*options).to_json(*options)
+      end
+
     end
 
     class Author < FixedAuthor
+      # @!attribute [r] fullname
+      #   @return [String] the full name of the author
       attr_reader :fullname # Can be nil
+      # @!attribute [r] signup
+      #   @return [Time] the signup timestamp of the author
       attr_reader :signup
+      # @!attribute [r] karma
+      #   @return [Float] the karma of the author
       attr_reader :karma
+      # @!attribute [r] ranking
+      #   @return [Integer] the ranking of the author
       attr_reader :ranking
+      # @!attribute [r] entropy
+      #   @return [Integer] the entropy percentage of the author
       attr_reader :entropy # Can be nil
+      # @!attribute [r] friends
+      #   @return [Hash] the relationships initiated by the author (author->friend)
       attr_reader :friends
+      # @!attribute [r] friends_of
+      #   @return [Hash] the relationships initiated by other authors (friend->author)
       attr_reader :friends_of
+      # @!attribute [r] subs_own
+      #   @return [Array] the subscriptions owned by the author
       attr_reader :subs_own
+      # @!attribute [r] subs_follow
+      #   @return [Array] the subscriptions followed by the author
       attr_reader :subs_follow
 
-      attr_reader :snapshot_timestamp
+      def initialize(name, id = nil, snapshot_timestamp = nil, json_data = nil)
 
-      def initialize(name, id = nil, snapshot_timestamp = nil)
-        super(name, id)
+        if json_data.nil?
+          super(name, id)
 
-        author_uri = format(::Wagg::Constants::Author::PROFILE_URL, author: @name)
-        @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
-        @raw_data = get_data(author_uri)
+          author_uri = format(::Wagg::Constants::Author::PROFILE_URL, author: @name)
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+          @raw_data = get_data(author_uri)
 
-        # When a user does not exist (@name is not valid) the site redirects to the frontpage
-        raise('Author does not exist') if author_uri != @raw_data.uri.to_s
+          # When a user does not exist (@name is not valid) the site redirects to the frontpage
+          raise('Author does not exist') if author_uri != @raw_data.uri.to_s
 
-        # Each parse_xxx() function issues one GET request
-        # TODO: Make these class methods rather than instance ones?
-        if id.nil?
-          if disabled
-            parse_id()
+          # Each parse_xxx() function issues one GET request
+          # TODO: Make these class methods rather than instance ones?
+          if id.nil?
+            if disabled
+              parse_id()
+            else
+              parse_id()
+            end
           else
-            parse_id()
+            @id = id.to_i
           end
+          parse_profile()
+          parse_subs_own()
+          parse_subs_follow()
+          parse_friends()
+          parse_friends_of()
+          parse_subs_own()
+          parse_subs_follow()
+          # parse_notes()
         else
-          @id = id
-        end
-        parse_profile()
-        parse_subs_own()
-        parse_subs_follow()
-        parse_friends()
-        parse_friends_of()
-        parse_subs_own()
-        parse_subs_follow()
-        # parse_notes()
+          super(json_data.name, json_data.id)
 
+          @fullname = json_data.fullname
+          @signup = Time.at(json_data.signup).utc.to_datetime
+          @karma = json_data.karma
+          @ranking = json_data.ranking
+          @entropy = json_data.entropy
+          @friends = json_data.friends.to_h.map { |k, v| [k, Time.at(v).utc.to_datetime] }.to_h
+          @friends_of = json_data.friends_of.to_h.map { |k, v| [k, Time.at(v).utc.to_datetime] }.to_h
+          @subs_own = json_data.subs_own
+          @subs_follow = json_data.subs_follow
+
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+        end
       end
 
       class << self
@@ -80,6 +161,20 @@ module Wagg
 
           author
         end
+
+        def from_json(string)
+          os_object = JSON.parse(string, object_class: OpenStruct)
+
+          # Some validation that we have the right object
+          if os_object.type == self.name.split('::').last
+            data = os_object.data
+
+            snapshot_timestamp = Time.at(os_object.timestamp).utc
+
+            Author.new(nil, nil, snapshot_timestamp, data)
+          end
+        end
+
 
         def get_id(img_item)
           # Guarantee that we have a Nokogiri::XML::Element object parameter
@@ -91,11 +186,11 @@ module Wagg
           id_item = ::Wagg::Utils::Functions.text_at_xpath(img_item, './@src')
           id_matched = id_item.match(::Wagg::Constants::Author::AVATAR_REGEX)
           # id = (id_matched[:id] unless id_matched.nil? || id_matched[:id].nil?)
-          if id_matched.nil? || id_matched[:id].nil?
-            id = nil
+          id = if id_matched.nil? || id_matched[:id].nil?
+            nil
           else
-            id = id_matched[:id]
-          end
+            id_matched[:id].to_i
+               end
 
           id
         end
@@ -122,7 +217,8 @@ module Wagg
 
         if avatar_source_item.match?(::Wagg::Constants::Author::AVATAR_REGEX)
           matched_id = avatar_source_item.match(::Wagg::Constants::Author::AVATAR_REGEX)
-          @id = matched_id[:id]
+          id = matched_id[:id]
+          @id = id.to_i
         end
 
       end
@@ -180,7 +276,6 @@ module Wagg
           matched_ranking = profile_ranking.match(/\A#(?<ranking>\d\.\d{3}|\d{1,3})(?<K>K)?\z/)
           @ranking = matched_ranking[:ranking].tr('.', '').to_i
           @ranking *= 1000 if matched_ranking.names.include?('K') && matched_ranking[:K] == 'K'
-
         end
       end
 
@@ -224,7 +319,7 @@ module Wagg
           relationships_items.each do |relationship|
             name_item = ::Wagg::Utils::Functions.text_at_xpath(relationship,'./a/@href')
             date_item = ::Wagg::Utils::Functions.text_at_xpath(relationship,'./a/@title')
-            matched_name = name_item.match(/\A\/user\/(?<name>.+)\z/)
+            matched_name = name_item.match(%r{\A/user/(?<name>.+)\z})
             name = matched_name[:name]
             matched_datetime = date_item.match(/\A#{name}\sdesde\s(?<date>.+)\z/)
             unless matched_datetime.nil?
@@ -267,27 +362,27 @@ module Wagg
 
       def as_json(options = {})
         {
-            type: self.class.name.downcase,
-            timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp),
+          type: self.class.name.split('::').last,
+          timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
+          data: {
+            id: @id.to_i,
             name: @name,
-            data: {
-              id: @id,
-                fullname: (!@fullname.nil? ? @fullname : nil),
-                disabled: disabled,
-                signup: ::Wagg::Utils::Functions.datetime_to_text(@signup),
-                karma: @karma,
-                entropy: (!@entropy.nil? ? @entropy : nil),
-                ranking: @ranking,
-                friends: ::Wagg::Utils::Functions.hash_str_datetime_to_json(@friends),
-                friends_of: ::Wagg::Utils::Functions.hash_str_datetime_to_json(@friends_of),
-                subs_own: @subs_own,
-                subs_follow: @subs_follow,
-            }
+            fullname: (!@fullname.nil? ? @fullname : nil),
+            disabled: disabled,
+            signup: ::Wagg::Utils::Functions.datetime_to_text(@signup, '%s').to_i,
+            karma: @karma,
+            entropy: (!@entropy.nil? ? @entropy : nil),
+            ranking: @ranking,
+            friends: ::Wagg::Utils::Functions.hash_str_datetime_to_json(@friends, true),
+            friends_of: ::Wagg::Utils::Functions.hash_str_datetime_to_json(@friends_of, true),
+            subs_own: @subs_own,
+            subs_follow: @subs_follow
+          }
         }
       end
 
       def to_json(*options)
-        as_json(*options)
+        as_json(*options).to_json(*options)
       end
 
     end

@@ -1,4 +1,4 @@
-# frozen_string_literal: true
+# encoding: UTF-8
 
 require 'mini_racer'
 require 'feedjira'
@@ -15,13 +15,26 @@ module Wagg
     # Since we take repeated snapshots of a news we need a versioning abstraction
     # which happens to be the statistics of the news
     class NewsStatistics
+      # @!attribute [r] karma
+      #   @return [Integer] the karma of the news
       attr_accessor :karma
+      # @!attribute [r] positive_votes
+      #   @return [Integer] the number of positive votes of the news
       attr_accessor :positive_votes
+      # @!attribute [r] negative_votes
+      #   @return [Integer] the number of negative votes of the news
       attr_accessor :negative_votes
+      # @!attribute [r] anonymous_votes
+      #   @return [Integer] the number of anonymous votes of the news
       attr_accessor :anonymous_votes
+      # @!attribute [r] num_clicks
+      #   @return [Integer] the number of clicks of the news
       attr_accessor :num_clicks
+      # @!attribute [r] num_comments
+      #   @return [Integer] the number of comments of the news
       attr_accessor :num_comments
-
+      # @!attribute [r] num_votes
+      #   @return [Integer] the number of positive and negative votes of the news
       def num_votes
         if @positive_votes.nil? && @negative_votes.nil?
           @num_votes
@@ -34,10 +47,55 @@ module Wagg
         @num_votes = num_votes if @positive_votes.nil? && @negative_votes.nil?
       end
 
+      def initialize(snapshot_timestamp = nil, json_data = nil)
+        if json_data.nil?
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+        else
+          @karma = json_data.karma
+          @positive_votes = json_data.positive_votes
+          @negative_votes = json_data.negative_votes
+          @anonymous_votes = json_data.anonymous_votes
+          @num_clicks = json_data.num_clicks
+          @num_comments = json_data.num_comments
 
-      def initialize(snapshot_timestamp = nil)
-        @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+        end
       end
+
+      class << self
+        def from_json(string)
+          os_object = JSON.parse(string, object_class: OpenStruct)
+
+          # Some validation that we have the right object
+          if os_object.type == self.name.split('::').last
+            data = os_object.data
+
+            snapshot_timestamp = Time.at(os_object.timestamp).utc
+
+            NewsStatistics.new(snapshot_timestamp, data)
+          end
+        end
+      end
+
+      def as_json(options = {})
+        {
+          type: self.class.name.split('::').last,
+          timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
+          data: {
+            karma: @karma,
+            positive_votes: @positive_votes,
+            negative_votes: @negative_votes,
+            anonymous_votes: @anonymous_votes,
+            num_clicks: @num_clicks,
+            num_comments: @num_comments
+          }
+        }
+      end
+
+      def to_json(*options)
+        as_json(*options).to_json(*options)
+      end
+
     end
 
     class News < NewsSummary
@@ -45,6 +103,9 @@ module Wagg
       #   @return [String] the status (published, queued, discarded) of the news
       # TODO: Figure whether this is really needed or can be extracted from the log_events attribute
       # attr_reader :status
+      # @!attribute [r] tags
+      #   @return [Array] the list of tags of the news
+      attr_reader :tags
       # @!attribute [r] karma_events
       #   @return [Hash] the list of karma events calculations of the news
       attr_reader :karma_events # Can be nil
@@ -55,18 +116,45 @@ module Wagg
       #   @return [ListComments] the list of comments of the news
       attr_reader :comments
 
-      def initialize(id_extended, comments_mode = 'rss', snapshot_timestamp = nil)
-        @id_extended = id_extended
-        @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
-        @raw_data = get_data(format(::Wagg::Constants::News::MAIN_URL, id_extended: @id_extended))
-        summary_item = @raw_data.css('div#newswrap > div.news-summary')
+      # @param [String] id_extended
+      # @param [String] comments_mode
+      # @param [nil] snapshot_timestamp
+      # @param [String] json_data
+      def initialize(id_extended, comments_mode = 'rss', snapshot_timestamp = nil, json_data = nil)
+        if json_data.nil?
+          @id_extended = id_extended
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+          @raw_data = get_data(format(::Wagg::Constants::News::MAIN_URL, id_extended: @id_extended))
 
-        # parse_summary
-        super(summary_item, @snapshot_timestamp)
+          # div#newswrap > div.news-summary
+          summary_item = @raw_data.at_css('div#newswrap > div.news-summary')
+          # div#newswrap > div.news-summary > div.news-body > div.center-content > span
+          tags_item = @raw_data.at_css('div#newswrap > div.news-summary > div.news-body > div.center-content > span')
 
-        parse_log
-        parse_votes
-        parse_comments(comments_mode)
+          # parse_summary
+          super(summary_item, @snapshot_timestamp)
+
+          parse_tags(tags_item)
+          parse_log
+          parse_votes
+          parse_comments(comments_mode)
+        else
+          @id = json_data.id
+          @id_extended = json_data.id_extended
+          @title = json_data.title
+          @author = ::Wagg::Crawler::FixedAuthor.from_json(json_data.author)
+          @link = json_data.link
+          @permalink_id = json_data.permalink_id
+          @body = json_data.body
+          @timestamps = json_data.timestamps.to_h.map { |k, v| [k, Time.at(v).utc.to_datetime] }.to_h
+          @category = json_data.category
+          @statistics = ::Wagg::Crawler::NewsStatistics.from_json(json_data.statistics)
+          @tags = json_data.tags
+          @karma_events = json_data.karma_events.to_h.map { |k, v| [k.to_s.to_i, v.to_h] }.to_h
+          @log_events = json_data.log_events.to_h.map { |k, v| [k.to_s.to_i, v.to_h] }.to_h
+
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+        end
       end
 
       class << self
@@ -75,6 +163,20 @@ module Wagg
 
           news
         end
+
+        def from_json(string)
+          os_object = JSON.parse(string, object_class: OpenStruct)
+
+          # Some validation that we have the right object
+          if os_object.type == self.name.split('::').last
+            data = os_object.data
+
+            snapshot_timestamp = Time.at(os_object.timestamp).utc
+
+            News.new(nil, nil, snapshot_timestamp, data)
+          end
+        end
+
       end
 
       def get_data(uri, retriever = nil, retriever_type = ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['news'])
@@ -90,6 +192,22 @@ module Wagg
         # page.encoding = 'utf-8'
         # page.body.force_encoding('utf-8')
         page
+      end
+
+      def parse_tags(tags_item)
+        tags_items_list = tags_item.css('a')
+
+        tags = []
+        tags_items_list.each do |tag_item|
+          tag_href = ::Wagg::Utils::Functions.text_at_xpath(tag_item, './@href')
+          if tag_href.match?(::Wagg::Constants::Tag::NAME_REGEX)
+            tag_href_matched = tag_href.match(::Wagg::Constants::Tag::NAME_REGEX)
+            tag = CGI.unescape(tag_href_matched[:tag].strip).unicode_normalize(:nfkc)
+          end
+          tags << tag
+        end
+
+        @tags = tags
       end
 
       def parse_log
@@ -109,16 +227,24 @@ module Wagg
 
         events_table_items.each do |event_item|
           event_timestamp_item = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[1]/span/@data-ts')
-          event_category_item = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[2]/text()')
-          event_type_item = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[3]/strong/text()')
+          event_timestamp = event_timestamp_item.to_i
+
+          event_category = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[2]/text()')
+
+          event_type = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[3]/strong/text()')
+
           event_author_item = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[4]/a/@href')
+          if event_author_item.match?(%r{\A/user/(?<author>.+)\z})
+            event_author_matched = event_author_item.match(%r{\A/user/(?<author>.+)\z})
+            event_author = event_author_matched[:author]
+          else
+            event_author = nil
+          end
 
-          event_author_matched = event_author_item.match(%r{\A/user/(?<author>.+)\z})
-
-          status_events[event_timestamp_item] = {
-            'category' => event_category_item,
-            'type' => event_type_item,
-            'author' => event_author_matched[:author]
+          status_events[event_timestamp] = {
+            'category' => event_category,
+            'type' => event_type,
+            'author' => event_author
           }
         end
 
@@ -147,7 +273,7 @@ module Wagg
 
         karma = {}
         karma_coef.each do |key, _value|
-          karma[key] = {
+          karma[key.to_i] = {
             'coef' => karma_coef[key],
             'old' => karma_old[key],
             'annotation' => karma_annotation[key],
@@ -167,6 +293,34 @@ module Wagg
       end
 
       private :parse_status_events, :parse_karma_events
+
+      def as_json(options = {})
+        {
+          type: self.class.name.split('::').last,
+          timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
+          data: {
+            id: @id.to_i,
+            id_extended: @id_extended,
+            title: @title,
+            author: @author.to_json,
+            link: @link,
+            permalink_id: @permalink_id,
+            body: body,
+            timestamps: ::Wagg::Utils::Functions.hash_str_datetime_to_json(@timestamps, true),
+            category: @category,
+            statistics: @statistics.to_json,
+            tags: @tags,
+            karma_events: @karma_events,
+            log_events: @log_events
+            # comments: TODO
+          }
+        }
+      end
+
+      def to_json(*options)
+        as_json(*options).to_json(*options)
+      end
+
     end
   end
 end

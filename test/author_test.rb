@@ -47,7 +47,10 @@ class AuthorTest < MiniTest::Test
     id_author = 'neotobarra2'
     author = ::Wagg.author(id_author)
 
-    assert_equal(author.id, '292897')
+    expected_id = 292897
+    actual_id = author.id
+
+    assert_equal(expected_id, actual_id)
   end
 
   def test_get_relationships_author_page
@@ -82,5 +85,16 @@ class AuthorTest < MiniTest::Test
     assert(author.disabled)
   end
 
+  def test_to_json_from_json
+    random_author = 'Gaveta'
+    author = ::Wagg.author(random_author)
+
+    expected_author_json = author.to_json
+
+    actual_author = ::Wagg::Crawler::Author.from_json(expected_author_json)
+    actual_author_json = actual_author.to_json
+
+    assert_equal(expected_author_json, actual_author_json)
+  end
 
 end

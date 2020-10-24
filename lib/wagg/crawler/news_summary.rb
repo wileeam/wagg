@@ -4,7 +4,7 @@ module Wagg
   module Crawler
     class NewsSummary
       # @!attribute [r] id
-      #   @return [Fixnum] the unique id of the news
+      #   @return [Integer] the unique id of the news
       attr_reader :id
       # @!attribute [r] id_extended
       #   @return [String] the extended id of the news
@@ -43,28 +43,41 @@ module Wagg
         end
       end
 
-      def initialize(raw_data, snapshot_timestamp = nil)
-        @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
-        @raw_data = raw_data
+      def initialize(raw_data, snapshot_timestamp = nil, json_data = nil)
+        if json_data.nil?
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+          @raw_data = raw_data
 
-        # div.news-body
-        id_item = @raw_data.css('div.news-body')
-        parse_id(id_item)
+          # div.news-body
+          id_item = @raw_data.css('div.news-body')
+          parse_id(id_item)
 
-        # div.news-body > div.news-details > div.news-details-main
-        id_extended_item = @raw_data.css('div.news-body > div.news-details > div.news-details-main')
-        parse_id_extended(id_extended_item)
+          # div.news-body > div.news-details > div.news-details-main
+          id_extended_item = @raw_data.css('div.news-body > div.news-details > div.news-details-main')
+          parse_id_extended(id_extended_item)
 
-        # div.news-body > div.center-content
-        content_item = @raw_data.css('div.news-body > div.center-content')
-        parse_content(content_item)
+          # div.news-body > div.center-content
+          content_item = @raw_data.css('div.news-body > div.center-content')
+          parse_content(content_item)
 
-        # div.news-body > div.news-shakeit
-        shakeit_item = @raw_data.css('div.news-body > div.news-shakeit')
-        # div.news-body > div.news-details
-        details_item = @raw_data.css('div.news-body > div.news-details')
-        parse_statistics(shakeit_item, details_item)
-        parse_permalink(details_item)
+          # div.news-body > div.news-shakeit
+          shakeit_item = @raw_data.css('div.news-body > div.news-shakeit')
+          # div.news-body > div.news-details
+          details_item = @raw_data.css('div.news-body > div.news-details')
+          parse_statistics(shakeit_item, details_item)
+          parse_permalink(details_item)
+        else
+          @id = json_data.id
+          @id_extended = json_data.id_extended
+          @title = json_data.title
+          @author = ::Wagg::Crawler::FixedAuthor.from_json(json_data.author)
+          @link = json_data.link
+          @permalink_id = json_data.permalink_id
+          @body = json_data.body
+          @timestamps = json_data.timestamps.to_h.map { |k, v| [k, Time.at(v).utc.to_datetime] }.to_h
+          @category = json_data.category
+          @statistics = ::Wagg::Crawler::NewsStatistics.from_json(json_data.statistics)
+        end
       end
 
       class << self
@@ -72,6 +85,19 @@ module Wagg
           news_summary = NewsSummary.new(raw_data, snapshot_timestamp)
 
           news_summary
+        end
+      end
+
+      def from_json(string)
+        os_object = JSON.parse(string, object_class: OpenStruct)
+
+        # Some validation that we have the right object
+        if os_object.type == self.name.split('::').last
+          data = os_object.data
+
+          snapshot_timestamp = Time.at(os_object.timestamp).utc
+
+          NewsSummary.new(nil, snapshot_timestamp, data)
         end
       end
 
@@ -105,7 +131,8 @@ module Wagg
       # Private methods below
 
       def parse_id(id_item)
-        @id = ::Wagg::Utils::Functions.text_at_xpath(id_item, './@data-link-id')
+        id = ::Wagg::Utils::Functions.text_at_xpath(id_item, './@data-link-id')
+        @id = id.to_i
       end
 
       def parse_id_extended(id_extended_item)
@@ -125,7 +152,7 @@ module Wagg
 
         author_timestamps_item = content_item.css('div.news-submitted')
         # Author's id
-        # We don't use ::Wagg::Crawler::Author.get_id() beccause './a/@class' contains the author's id directly
+        # We don't use ::Wagg::Crawler::Author.get_id() because './a/@class' contains the author's id directly
         author_id_items = ::Wagg::Utils::Functions.text_at_xpath(author_timestamps_item, './a/@class')
         author_id_matched = author_id_items.match(/\A.+\su\:(?<author_id>\d+)\z/)
         author_id = author_id_matched[:author_id]
@@ -134,16 +161,17 @@ module Wagg
         author_name_matched = author_name_item.match(/\A\/user\/(?<author_name>.+)\z/)
         author_name = author_name_matched[:author_name]
         @author = ::Wagg::Crawler::FixedAuthor.new(author_name, author_id)
+
         timestamps_items = author_timestamps_item.xpath('./span[contains(concat(" ",normalize-space(@class)," ")," visible ")]')
         timestamps = Hash.new
         timestamps_items.each do |timestamp_item|
           case ::Wagg::Utils::Functions.text_at_xpath(timestamp_item, './@title')
           when /\Aenviado\:\z/
             timestamp_sent = ::Wagg::Utils::Functions.text_at_xpath(timestamp_item, './@data-ts').to_i
-            timestamps[::Wagg::Constants::News::STATUS_TYPE['sent']] = timestamp_sent
+            timestamps[::Wagg::Constants::News::STATUS_TYPE['sent']] = Time.at(timestamp_sent).utc.to_datetime
           when /\Apublicado\:\z/
             timestamp_published = ::Wagg::Utils::Functions.text_at_xpath(timestamp_item, './@data-ts').to_i
-            timestamps[::Wagg::Constants::News::STATUS_TYPE['published']] = timestamp_published
+            timestamps[::Wagg::Constants::News::STATUS_TYPE['published']] = Time.at(timestamp_published).utc.to_datetime
           end
         end
         @timestamps = timestamps
@@ -195,6 +223,30 @@ module Wagg
       end
 
       private :parse_id, :parse_id_extended, :parse_content, :parse_statistics, :parse_permalink
+
+      def as_json(options = {})
+        {
+            type: self.class.name.split('::').last,
+            timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
+            data: {
+              id: @id.to_i,
+              id_extended: @id_extended,
+              title: @title,
+              author: @author.to_json,
+              link: @link,
+              permalink_id: @permalink_id,
+              body: body,
+              timestamps: ::Wagg::Utils::Functions.hash_str_datetime_to_json(@ranking, true),
+              category: @category,
+              statistics: @statistics.to_json
+            }
+        }
+      end
+
+      def to_json(*options)
+        as_json(*options).to_json(*options)
+      end
+
     end
   end
 end

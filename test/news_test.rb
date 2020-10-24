@@ -22,4 +22,27 @@ class NewsTest < MiniTest::Test
     assert(news.id, '3392421')
   end
 
+  def test_get_tags_of_news
+    id_extended_news = 'pp-pide-hbo-retire-cartel-patria-equipara-victimas-verdugos'
+    news = ::Wagg.news(id_extended_news)
+
+    expected_tags = %w[pp patria ofensa víctimas verdugos hbo retirada].map { |tag| tag.unicode_normalize(:nfkc)}
+    actual_tags = news.tags
+
+    assert_equal(expected_tags.length, actual_tags.length)
+    assert(expected_tags.sort == actual_tags.sort)
+  end
+
+  def test_to_json_from_json
+    random_news = 'asi-como-soldados-chinos-montan-menos-30-minutos-puente-mas'
+    news = ::Wagg.news(random_news)
+
+    expected_news_json = news.to_json
+
+    actual_news = ::Wagg::Crawler::News.from_json(expected_news_json)
+    actual_news_json = actual_news.to_json
+
+    assert_equal(expected_news_json, actual_news_json)
+  end
+
 end

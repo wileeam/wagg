@@ -18,6 +18,7 @@ module Wagg
       HISTORY_URL = File.join(MAIN_URL, '/history')
       
       AVATAR_REGEX = %r{\Ahttps\:/{2}mnmstatic\.net/cache/\d{2}/[[:alnum:]]{2}/(?<id>\d+)\-(?<timestamp>\d+)\-\d{2}\.jpg\z}.freeze
+      DISABLED_REGEX = %r{\A\-{2}(?<id>\d+)\-{2}\z}.freeze
     end
 
     # Comment URL query templates
@@ -63,6 +64,11 @@ module Wagg
                    ::Wagg::Constants::News::STATUS_TYPE['candidate'] => File.join(::Wagg::Constants::Site::MAIN_URL, '/queue?page=%{page}&meta=_popular'),
                    ::Wagg::Constants::News::STATUS_TYPE['discarded'] => File.join(::Wagg::Constants::Site::MAIN_URL, '/queue?page=%{page}&meta=_discarded') }.freeze
     end
+    
+    module Tag
+      NAME_REGEX = %r{\A\/search\?p\=tags\&q\=\+?(?<tag>.+)\z}.freeze
+    end
+    
     # Vote URL query templates
     module Vote
       TYPE = { 'news' => 'news',
