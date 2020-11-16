@@ -126,15 +126,25 @@ module Wagg
           @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
           @raw_data = get_data(format(::Wagg::Constants::News::MAIN_URL, id_extended: @id_extended))
 
-          # div#newswrap > div.news-summary
-          summary_item = @raw_data.at_css('div#newswrap > div.news-summary')
-          # div#newswrap > div.news-summary > div.news-body > div.center-content > span
-          tags_item = @raw_data.at_css('div#newswrap > div.news-summary > div.news-body > div.center-content > span')
+          # TODO: Detect here if it is an article category news or not
+          # "#container > div:nth-child(1) > div > div.col-md-8.col-md-offset-1 > div"
+          if @raw_data.at_css('div#newswrap').nil? && !@raw_data.at_css('div.story-blog').nil?
+            summary_item = @raw_data.at_css('div.story-blog > div.row')
+          else
+            # div#newswrap > div.news-summary
+            summary_item = @raw_data.at_css('div#newswrap > div.news-summary')
 
-          # parse_summary
-          super(summary_item, @snapshot_timestamp)
+            # div#newswrap > div.news-summary > div.news-body > div.center-content > span
+            # document.querySelector("#newswrap > div.news-summary > div > div.center-content > span")
+            tags_item = @raw_data.at_css('div#newswrap > div.news-summary > div.news-body > div.center-content > span')
+            more_tags_item = @raw_data.at_css('div#newswrap > div.news-summary > div > div.center-content > span')
+            puts more_tags_item
+            puts tags_item
+            parse_tags(tags_item)
+            # parse_summary
+            super(summary_item, @snapshot_timestamp)
+          end
 
-          parse_tags(tags_item)
           parse_log
           parse_votes
           parse_comments(comments_mode)
@@ -240,7 +250,8 @@ module Wagg
         log_events_table_items = log_raw_data.css('div#voters > fieldset > div#voters-container > div')
         @log_events = parse_status_events(log_events_table_items)
 
-        log_karma_events_script_items = log_raw_data.css('div#newswrap > script')
+        #log_karma_events_script_items = log_raw_data.css('div#newswrap > script')
+        log_karma_events_script_items = log_raw_data.xpath('div[@id="container"]/div//script')
         @karma_events = parse_karma_events(log_karma_events_script_items)
       end
 

@@ -44,17 +44,20 @@ module Wagg
 
       VOTES_QUERY_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/backend/', 'meneos.php?id=%{id}&p=%{page}'])
 
-      STATUS_TYPE = { 'discarded' => 'discarded',
-                      'sent' => 'sent',
-                      'queued' => 'queued',
-                      'candidate' => 'candidate',
-                      'published' => 'published' }.freeze
+      STATUS_TYPE = { 'discarded' => 'discarded'.downcase,
+                      'sent' => 'sent'.downcase,
+                      'queued' => 'queued'.downcase,
+                      'candidate' => 'candidate'.downcase,
+                      'published' => 'published'.downcase }.freeze
 
       EVENT_LOG_TYPE = { 'link_discard' => -2,
                          'link_depublished' => -1,
                          'link_new' => 0,
                          'link_edit' => 1,
                          'link_publish' => 2 }.freeze
+
+      CATEGORY_TYPE = { 'actualidad' => 'actualidad',
+                        'articles' => 'Artículos' }.freeze
     end
 
     module Page
@@ -81,7 +84,7 @@ module Wagg
       COMMENT_REGEX = %r{\A(?<author>.+)\:[[:space:]](?<datetime>\d{2}/\d{2}\-\d{2}\:\d{2}\:\d{2})[[:space:]]karma\:[[:space:]](?<weight>\-?\d{1,2})\z}.freeze
 
       SIGN = { 'positive' => 'positive',
-                    'negative' => 'negative' }.freeze
+               'negative' => 'negative' }.freeze
 
       NEWS_SIGN = SIGN
       NEWS_NEGATIVE_WEIGHT = { 'antigua' => -2,
@@ -104,12 +107,12 @@ module Wagg
       CREDENTIALS_PATH = 'config/secrets.yml'.freeze
       COOKIES_PATH = 'config/cookies.yml'.freeze
 
-      RETRIEVAL_TYPE = { 'default' => 'default',
-                         'page' => 'page',
-                         'news' => 'news',
-                         'comment' => 'comment',
-                         'vote' => 'vote',
-                         'author' => 'author' }.freeze
+      RETRIEVAL_TYPE = { 'default' => 'default'.downcase,
+                         'page' => 'page'.downcase,
+                         'news' => 'news'.downcase,
+                         'comment' => 'comment'.downcase,
+                         'vote' => 'vote'.downcase,
+                         'author' => 'author'.downcase }.freeze
       # Retrieval defaults delays (in seconds)
       RETRIEVAL_DELAY = { ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['default'] => 10,
                           ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['page'] => 3,

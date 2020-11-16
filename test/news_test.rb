@@ -22,6 +22,14 @@ class NewsTest < MiniTest::Test
     assert(news.id, '3392421')
   end
 
+  def test_get_category_of_article_news
+    #id_extended_article_category_news = 'motivo-cual-entrais-meneame'
+    id_extended_article_category_news = 'golpe-chile-richard-nixon-hay-forma-desbancar-allende-mejor'
+    news = ::Wagg.news(id_extended_article_category_news)
+
+    news
+  end
+
   def test_get_summary_of_news
     page_index = '2'
     page_type = 'published'

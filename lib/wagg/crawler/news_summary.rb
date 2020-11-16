@@ -53,7 +53,7 @@ module Wagg
           @raw_data = raw_data
 
           # div.news-body
-          id_item = @raw_data.css('div.news-body')
+          id_item = raw_data.css('div.news-body')
           parse_id(id_item)
 
           # div.news-body > div.news-details > div.news-details-main
@@ -90,6 +90,13 @@ module Wagg
 
           news_summary
         end
+      end
+
+      # Clarifies whether the news is an article or not
+      #
+      # @return [Boolean] returns whether category is articles or not
+      def article?
+        !!(@link.equal?(@link) || @category.match?(::Wagg::Constants::News::CATEGORY_TYPE['articles']))
       end
 
       def from_json(string)
@@ -149,9 +156,9 @@ module Wagg
         title_link_item = content_item.css('h2')
         # News' title
         title = ::Wagg::Utils::Functions.text_at_xpath(title_link_item, './a/text()')
+        @title = title
         # News' link
         link = ::Wagg::Utils::Functions.text_at_xpath(title_link_item, './a/@href')
-        @title = title
         @link = link
 
         author_timestamps_item = content_item.css('div.news-submitted')

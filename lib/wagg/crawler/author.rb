@@ -21,7 +21,7 @@ module Wagg
       def initialize(name, id = nil, snapshot_timestamp = nil, json_data = nil)
         if json_data.nil?
           @name = name
-          if disabled
+          if disabled?
             id_matched = @name.match(::Wagg::Constants::Author::DISABLED_REGEX)
             @id = id_matched[:id].to_i
           else
@@ -57,8 +57,8 @@ module Wagg
       # Clarifies whether author is disabled or not
       #
       # @return [Boolean] returns the disabled status
-      def disabled
-        @name.match?(::Wagg::Constants::Author::DISABLED_REGEX)
+      def disabled?
+        !!@name.match?(::Wagg::Constants::Author::DISABLED_REGEX)
       end
 
       def as_json(options = {})
