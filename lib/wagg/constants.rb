@@ -37,6 +37,7 @@ module Wagg
       MAIN_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/story/', '%{id_extended}'])
       MAIN_PERMALINK_URL = File.join('http://menea.me', %{permalink_id})
       LOG_URL = File.join(MAIN_URL, '/log')
+      KARMA_STORY_JSON_URL = File.join(::Wagg::Constants::Site::MAIN_URL, ['/backend/', 'karma-story.json?id=%{id}'])
 
       COMMENTS_URL = File.join(MAIN_URL, ['/standard/', '%{page}'])
       COMMENTS_URL_MAX_PAGE = 100

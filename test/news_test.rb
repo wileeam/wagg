@@ -22,6 +22,16 @@ class NewsTest < MiniTest::Test
     assert(news.id, '3392421')
   end
 
+  def test_get_story_of_news_events
+    id_extended_news = 'marruecos-anunciara-proximas-horas-ruptura-relaciones-espana'
+    #id_extended_news = 'sitios-interesantes-google-maps'
+    news = ::Wagg.news(id_extended_news)
+
+    news.karma_events
+    # TODO(guillermo): do me!
+
+  end
+
   def test_get_category_of_article_news
     #id_extended_article_category_news = 'motivo-cual-entrais-meneame'
     id_extended_article_category_news = 'golpe-chile-richard-nixon-hay-forma-desbancar-allende-mejor'

@@ -19,7 +19,7 @@ module Wagg
 
       class << self
         def from_json(string)
-          os_object = JSON.parse(string, object_class: OpenStruct)
+          os_object = JSON.parse(string, {:object_class => OpenStruct, :quirks_mode => true})
 
           # Some validation that we have the right object
           if os_object.type == self.name.split('::').last

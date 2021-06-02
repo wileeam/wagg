@@ -3,12 +3,13 @@
 module Wagg
   module Utils
     module Functions
-      def self.text_at_css(root, css=nil)
+      def self.text_at_css(root, css = nil)
         raw_element = root
         unless css.nil?
           raw_element = root.at_css(css)
         end
 
+        # raw_element.nil? == root.at(css).nil?
         if raw_element.nil?
           nil
         else
@@ -16,12 +17,13 @@ module Wagg
         end
       end
 
-      def self.text_at_xpath(root, xpath=nil, transliterate=false)
+      def self.text_at_xpath(root, xpath = nil, transliterate = false)
         raw_element = nil
         unless xpath.nil?
           raw_element = root.at_xpath(xpath)
         end
 
+        # raw_element.nil? == root.at(css).nil?
         if raw_element.nil?
           nil
         else
@@ -29,7 +31,7 @@ module Wagg
         end
       end
 
-      def self.datetime_to_text(dt, format='%Y-%m-%d %H:%M:%S%z')
+      def self.datetime_to_text(dt, format = '%Y-%m-%d %H:%M:%S%z')
         dt.strftime(format)
       end
 
@@ -37,7 +39,7 @@ module Wagg
         dt.strftime('%s').to_i
       end
 
-      def self.timestamp_to_text(t, format='%Y-%m-%d %H:%M:%S%z')
+      def self.timestamp_to_text(t, format = '%Y-%m-%d %H:%M:%S%z')
         t.strftime(format)
       end
 

@@ -13,7 +13,7 @@ require_relative 'wagg/crawler/page'
 
 module Wagg
   #class Error < StandardError; end
-  # Your code goes here...
+
   class << self
     def author(name)
       Crawler::Author.parse(name)

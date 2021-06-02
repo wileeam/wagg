@@ -64,7 +64,7 @@ module Wagg
 
       class << self
         def from_json(string)
-          os_object = JSON.parse(string, object_class: OpenStruct)
+          os_object = JSON.parse(string, {:object_class => OpenStruct, :quirks_mode => true})
 
           # Some validation that we have the right object
           if os_object.type == self.name.split('::').last
@@ -161,7 +161,9 @@ module Wagg
           @statistics = ::Wagg::Crawler::NewsStatistics.from_json(json_data.statistics)
 
           @tags = json_data.tags
-          @karma_events = json_data.karma_events.to_h.map { |k, v| [k.to_s.to_i, v.to_h] }.to_h
+          @karma_events = json_data.karma_events.to_h
+          karma_events_list = @karma_events[:karma].map { |karma_event| [karma_event[0], karma_event[1].to_h]  }
+          @karma_events[:karma] = karma_events_list
           @log_events = json_data.log_events.to_h.map { |k, v| [k.to_s.to_i, v.to_h] }.to_h
 
           @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
@@ -190,7 +192,7 @@ module Wagg
         end
 
         def from_json(string)
-          os_object = JSON.parse(string, object_class: OpenStruct)
+          os_object = JSON.parse(string, {:object_class => OpenStruct, :quirks_mode => true})
 
           # Some validation that we have the right object
           if os_object.type == self.name.split('::').last
@@ -247,16 +249,26 @@ module Wagg
 
         log_raw_data = get_data(log_uri)
 
-        log_events_table_items = log_raw_data.css('div#voters > fieldset > div#voters-container > div')
-        @log_events = parse_status_events(log_events_table_items)
+        # Closed news will lack this information
+        if log_raw_data.at('div#voters > fieldset > div#voters-container > div')
+          log_events_table_items = log_raw_data.css('div#voters > fieldset > div#voters-container > div')
+          @log_events = parse_status_events(log_events_table_items)
+        else # ::Wagg::Utils::Functions.text_at_css(log_raw_data, 'div#voters > fieldset > div#voters-container') == 'no hay registros'
+          @log_events = nil
+        end
 
-        #log_karma_events_script_items = log_raw_data.css('div#newswrap > script')
-        log_karma_events_script_items = log_raw_data.xpath('div[@id="container"]/div//script')
-        @karma_events = parse_karma_events(log_karma_events_script_items)
+        # Very old news won't have this information
+        if log_raw_data.at('div#newswrap > script')
+          log_karma_events_script_items = log_raw_data.css('div#newswrap > script')
+          # log_karma_events_script_items = log_raw_data.xpath('div[@id="container"]/div//script')
+          @karma_events = parse_karma_events(log_karma_events_script_items)
+        else
+          @karma_events = nil
+        end
       end
 
       def parse_status_events(events_table_items)
-        status_events = {}
+        status_events = []
 
         events_table_items.each do |event_item|
           event_timestamp_item = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[1]/span/@data-ts')
@@ -274,18 +286,35 @@ module Wagg
             event_author = nil
           end
 
-          status_events[event_timestamp] = {
+          event_data = {
             'category' => event_category,
             'type' => event_type,
             'author' => event_author
           }
+          status_events.append([Time.at(event_timestamp).to_datetime, event_data])
         end
 
         status_events
       end
 
       def parse_karma_events(script_items)
-        # Cool stuff. Interpret JavaScript and store the results!
+        # First parse JSON of events at ::Wagg::Constants::News::KARMA_STORY_JSON_URL
+        story_events_uri = format(::Wagg::Constants::News::KARMA_STORY_JSON_URL, id: @id)
+
+        story_events_raw_data = get_data(story_events_uri)
+
+        story_events_json = JSON.parse(story_events_raw_data.body, {:quirks_mode => true})
+
+        story_events = {}
+        story_events_json.each do |story|
+          label = story['label']
+          data = story['data']
+
+          story_events[label] = data.map { |event| [Time.at(event[0] / 1000.0).to_datetime, event[1].to_i] }
+        end
+
+        # Thereafter parse the extra attributes of each 'karma' event
+        # And cool stuff by the way, interpret JavaScript and store the results!
         context = MiniRacer::Context.new
         context.eval(script_items.at_xpath('.').text)
         k_coef_keys = context.eval('Object.keys(k_coef);')
@@ -304,9 +333,9 @@ module Wagg
         k_site_values = context.eval('Object.values(k_site);')
         karma_site = Hash[k_site_keys.zip k_site_values]
 
-        karma = {}
+        karma_events = {}
         karma_coef.each do |key, _value|
-          karma[key.to_i] = {
+          karma_events[Time.at(key.to_i).to_datetime] = {
             'coef' => karma_coef[key],
             'old' => karma_old[key],
             'annotation' => karma_annotation[key],
@@ -314,7 +343,16 @@ module Wagg
           }
         end
 
-        karma
+        # Finally merge the extra attributes of each 'karma' event with the events' JSON
+        story_karma_events = []
+        story_events['karma'].each do |karma_event|
+          event = karma_events[karma_event[0]]
+          event['current'] = karma_event[1]
+          story_karma_events.append([karma_event[0], event])
+        end
+        story_events['karma'] = story_karma_events
+
+        story_events
       end
 
       def parse_comments(mode = 'rss')
@@ -343,8 +381,8 @@ module Wagg
             category: @category,
             statistics: @statistics.to_json,
             tags: @tags,
-            karma_events: @karma_events,
-            log_events: @log_events
+            karma_events: (@karma_events.nil? ? {} : @karma_events),
+            log_events: (@log_events.nil? ? {} : @log_events),
             # comments: TODO
           }
         }

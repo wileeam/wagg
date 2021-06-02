@@ -40,7 +40,7 @@ class AuthorTest < MiniTest::Test
     disabled_author = '--637844--'
     @author = ::Wagg.author(disabled_author)
 
-    assert(@author.disabled)
+    assert(@author.disabled?)
   end
 
   def test_get_id_author
@@ -66,15 +66,15 @@ class AuthorTest < MiniTest::Test
     author = ::Wagg.author(subs_author)
 
     assert_equal(author.subs_own.length, 0)
-    assert_equal(author.subs_follow.length, 9)
+    assert_operator(author.subs_follow.length,'>=', 10)
   end
 
   def test_get_enabled_author_page
-    enabled_author = 'didacgil9'
+    enabled_author = 'nereira'
     author = ::Wagg.author(enabled_author)
 
     assert_equal(author.name, enabled_author)
-    assert(!author.disabled)
+    assert(!author.disabled?)
   end
 
   def test_get_disabled_author_page
@@ -82,7 +82,7 @@ class AuthorTest < MiniTest::Test
     author = ::Wagg.author(disabled_author)
 
     assert_equal(author.name, disabled_author)
-    assert(author.disabled)
+    assert(author.disabled?)
   end
 
   def test_to_json_from_json
