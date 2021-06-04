@@ -21,18 +21,6 @@ class Retriever < MiniTest::Test
     skip 'Not implemented'
   end
 
-  def test_get_with_tor
-    puts Tor.available?
-    puts Tor.version
-    puts Tor.running?
-    # torrc = Tor::Config.load("/etc/tor/torrc")
-
-    Tor::Controller.connect(host: '127.0.0.1', port: 9051) do |tor|
-      puts "Tor version: #{tor.version}"
-      puts "Tor config file: #{tor.config_file}"
-    end
-  end
-
   def test_get_author_json
     json_author = 'Gerardo_Diaz_Finetti'
     author = ::Wagg.author(json_author)
