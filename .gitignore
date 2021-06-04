@@ -151,6 +151,7 @@ pickle-email-*.html
 # TODO Comment out these rules if you are OK with secrets being uploaded to the repo
 config/initializers/secret_token.rb
 config/secrets.yml
+config/cookies.yml
 
 ## Environment normalisation:
 /.bundle
@@ -168,7 +169,6 @@ bower.json
 .powenv
 # rcov generated
 coverage
-coverage.data
 
 # rdoc generated
 rdoc

@@ -1,522 +1,387 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
+require 'mini_racer'
+require 'feedjira'
+require 'httparty'
+
+require 'wagg/utils/parser'
+
+require 'wagg/crawler/news_summary'
+require 'wagg/crawler/vote'
 require 'wagg/crawler/comment'
-
 
 module Wagg
   module Crawler
-    class News
-      # @!attribute [r] id
-      #   @return [Fixnum] the unique id of the news
-      attr_reader :id
-      # @!attribute [r] title
-      #   @return [String] the title of the news
-      attr_reader :title
-      # @!attribute [r] author
-      #   @return [String] the author of the news
-      attr_reader :author
-      # @!attribute [r] description
-      #   @return [String] the description of the news
-      attr_reader :description
-      # @!attribute [r] timestamps
-      #   @return [Hash] the creation and publication (if available) timestamps of the news
-      attr_reader :timestamps
-      # @!attribute [r] category
-      #   @return [String] the category of the news
-      attr_reader :category
-      # @!attribute [r] status
-      #   @return [String] the status (published, queued, discarded) of the news
-      attr_reader :status
+    # Since we take repeated snapshots of a news we need a versioning abstraction
+    # which happens to be the statistics of the news
+    class NewsStatistics
+      # @!attribute [r] karma
+      #   @return [Integer] the karma of the news
+      attr_accessor :karma
+      # @!attribute [r] positive_votes
+      #   @return [Integer] the number of positive votes of the news
+      attr_accessor :positive_votes
+      # @!attribute [r] negative_votes
+      #   @return [Integer] the number of negative votes of the news
+      attr_accessor :negative_votes
+      # @!attribute [r] anonymous_votes
+      #   @return [Integer] the number of anonymous votes of the news
+      attr_accessor :anonymous_votes
+      # @!attribute [r] num_clicks
+      #   @return [Integer] the number of clicks of the news
+      attr_accessor :num_clicks
+      # @!attribute [r] num_comments
+      #   @return [Integer] the number of comments of the news
+      attr_accessor :num_comments
 
-      attr_accessor :karma, :votes_count, :clicks, :comments_count
-      attr_accessor :tags
-
-      def initialize(id, title, author, description, urls, timestamps, category, status)
-        @id = id
-        @title = title
-        @author = author
-        @description = description
-        @urls = urls
-        @timestamps = timestamps
-        @category = category
-        @status = status
-
-        @karma = nil
-        # TODO Include the following atribute in a future update method as the information changes over time.
-        @clicks = nil
-        @comments_count = nil
-        @votes_count = nil
-
-        @log = nil
-        @comments = nil
-        @votes = nil
-
-        case @status
-          when "discarded" #Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"]
-            @comments_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['discarded']) <= @timestamps['retrieval']
-            @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
-          when "queued" #Wagg::Utils::Constants::NEWS_STATUS_TYPE["queued"]
-            @comments_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['queued']) <= @timestamps['retrieval']
-            @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
-          when "published" #Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"]
-            @comments_closed = (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published']) <= @timestamps['retrieval']
-            @votes_closed = (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
-          else
-            # We have this for safety as it costs time (one new request to the server)
-            @comments_closed = comments_contribution?
-            @votes_closed = (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME) <= @timestamps['retrieval']
-        end
-      end
-
-      def urls(normalize = true)
-        { 'internal' => self.url_internal(normalize), 'external' => @urls['external'] }
-      end
-
-      def url_internal(normalize = true)
-        normalize ?
-            Wagg::Utils::Constants::NEWS_URL % {:url_id => URI(URI.escape(@urls['internal'])).path.split('/').last} :
-            @urls['internal']
-      end
-
-      def url_external
-        @urls['external']
-      end
-
-      def votes
-        if @votes.nil? && self.votes_available?
-          @votes = Vote.parse_news_votes(@id)
-        end
-
-        @votes
-      end
-
-      def comments
-        if @comments.nil? && self.comments_available?
-          @comments = parse_comments(Wagg.configuration.retrieval_comments_rss)
-        end
-
-        @comments
-      end
-
-      def log
-        if @log.nil? && self.log_available?
-          @log = parse_events_log
-        end
-
-        @log
-      end
-
-      def published?
-        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['published']
-      end
-
-      def queued?
-        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['queued']
-      end
-
-      def discarded?
-        @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['discarded']
-      end
-
-      def commenting_closed?
-        @comments_closed
-      end
-
-      def commenting_open?
-        !@comments_closed
-      end
-
-      def voting_closed?
-        @votes_closed
-      end
-
-      def voting_open?
-        !@votes_closed
-      end
-
-      def comment(index)
-        self.comments? ? self.comments[index] : nil
-      end
-
-      def comments?
-        self.comments_available? && @comments_count > 0
-      end
-
-      def comments_available?
-        true # Comments are always available
-      end
-
-      def comments_consistent?
-        self.comments? ? @comments_count == self.comments.size : false
-      end
-
-      def votes?
-        self.votes_available? && (@votes_count['positive'] + @votes_count['negative']) > 0
-      end
-
-      def votes_available?
-        if @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['published']
-          (@timestamps['publication'] <= @timestamps['retrieval']) &&
-              (@timestamps['retrieval'] <= (@timestamps['publication'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
-        else # @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['queued'] || @status == Wagg::Utils::Constants::NEWS_STATUS_TYPE['discarded']
-          (@timestamps['creation'] <= @timestamps['retrieval']) &&
-              (@timestamps['retrieval'] <= (@timestamps['creation'] + Wagg::Utils::Constants::NEWS_CONTRIBUTION_LIFETIME['published'] + Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
-        end
-      end
-
-      def votes_consistent?
-        self.votes? ? (@votes_count['positive'] + @votes_count['negative']) == self.votes.size : false
-      end
-
-      def log_available?
-        (@timestamps['creation'] <= @timestamps['retrieval']) &&
-        (@timestamps['retrieval'] <= (@timestamps['creation'] + 2*Wagg::Utils::Constants::NEWS_VOTES_LIFETIME))
-      end
-
-      def to_s
-        "NEWS : %{id} [%{ty}:%{vs}:%{cs}] - %{t} (%{cat})" % {id:@id, vs:self.voting_open? ? 'open' : 'closed', cs:self.commenting_open? ? 'open' : 'closed', ty:@status, t:@title, cat:@category} +
-            "\n" +
-            "    %{a} - %{ts}" % {a:@author, ts:@timestamps} +
-            "\n" +
-            "    %{d}..." % {d:@description[0,10]} +
-            "\n" +
-            "    %{u}" % {u:self.urls} +
-            "\n" +
-            "    %{k} :: %{vc} - %{c}" % {k:@karma, vc:@votes_count, c:@clicks} +
-            "\n" +
-            "    Tags: %{tg}" % {tg:(@tags.nil? ? 'EMPTY' : @tags)} +
-            "\n" +
-            "    Votes: %{v}" % {v:(@votes.nil? ? 'EMPTY' : @votes.size)} +
-            "\n" +
-            "    Comments: %{co}" % {co:(@comments.nil? ? 'EMPTY' : @comments.size)}
-      end
-
-      def parse_comments(rss=false)
-        if rss
-          news_comments = parse_comments_rss
+      # @!attribute [r] num_votes
+      #   @return [Integer] the number of positive and negative votes of the news
+      def num_votes
+        if @positive_votes.nil? && @negative_votes.nil?
+          @num_votes
         else
-          news_comments = parse_comments_html
+          @positive_votes + @negative_votes
         end
-
-        news_comments
       end
 
-      def parse_comments_rss
-        news_comments = Hash.new
-
-        comments_retrieval_timestamp = Time.now.to_i
-
-        news_comments_rss =  Feedjira::Feed.fetch_and_parse(Wagg::Utils::Constants::NEWS_COMMENTS_RSS_URL % {id:@id})
-
-        news_comments_rss.entries.each do |c|
-          comment = Comment.parse_by_rss(c, comments_retrieval_timestamp)
-          news_comments[comment.news_index] = comment
-        end
-
-        news_comments
+      def num_votes=(num_votes = nil)
+        @num_votes = num_votes if @positive_votes.nil? && @negative_votes.nil?
       end
 
-      def parse_comments_html
-        news_comments = Hash.new
-
-        comments_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['news']
-
-        news_item = Wagg::Utils::Retriever.instance.get(@urls['internal'], 'news')
-
-        news_comments_item = news_item.css('div#newswrap div.comments')
-
-        comments_item = news_comments_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
-        # Find out how many pages of comments there are (at least one, the news page)
-        pages_item = news_comments_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " pages ")]/a')
-        (pages_item.count != 0) ? pages_total = pages_item.count : pages_total = 1
-
-        pages_counter = 1
-        begin
-          if pages_total > 1
-            comments_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['news']
-            comments_page = Wagg::Utils::Retriever.instance.get("%{url}/%{page}" % {url:@urls['internal'], page:pages_counter}, 'news')
-            comments_item = comments_page.search('.//div[contains(concat(" ", normalize-space(@class), " "), " threader ")]/*[1][@id]')
-          end
-
-          comments_item.each do |c|
-            begin
-              comment = Comment.parse(c, comments_retrieval_timestamp)
-              news_comments[comment.news_index] = comment
-            rescue NoMethodError, TypeError => e
-              # TODO: Do nothing? Next piece of code will take care of the missing comments?
-            end
-          end
-
-          pages_counter += 1
-        end while (pages_counter <= pages_total)
-
-        # We need to make sure we have all comments because due to bad renderization on site's end some may be missing
-        # If comments are missing, we revert to parsing them via RSS ()
-        if news_comments.size < @comments_count
-          news_comments_rss_retrieval_timestamp = Time.now.to_i
-          news_comments_rss =  Feedjira::Feed.fetch_and_parse(Wagg::Utils::Constants::NEWS_COMMENTS_RSS_URL % {id:@id})
-
-          # We try first to get the IDs of missing comments via RSS as it is just one request to the server
-          news_missing_comments = Array.new
-          news_comments_rss.entries.each do |missing_comment_rss|
-            unless news_comments.map{ |index, c| c.news_index }.include?(missing_comment_rss.comment_news_index.to_i)
-              news_missing_comments.push(missing_comment_rss)
-            end
-          end
-
-          # Finally, we are expecting to have all missing comments IDs...
-          news_missing_comments.each do |missing_comment_rss|
-            begin
-              missing_comment = Comment.parse_by_id(missing_comment_rss.comment_id.to_i)
-            rescue NoMethodError, TypeError => e
-              missing_comment = Comment.parse_by_rss(missing_comment_rss, news_comments_rss_retrieval_timestamp)
-            end
-            news_comments[missing_comment.news_index] = missing_comment
-          end
-
-          # If we haven't got all missing comments, then we have to do individual requests for the missing comments
-          # For example, the RSS delivered from the server has a limit of 500 entries but there can be more comments
-          if news_comments.size < @comments_count
-            news_missing_comments_indexes = (1..@comments_count).to_a - news_comments.map{ |index, c| c.news_index }
-            news_missing_comments_indexes.each do |missing_comment_index|
-              comment_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['comment']
-              news_item = Wagg::Utils::Retriever.instance.get("#{@urls['internal']}/c0#{missing_comment_index}#c-#{missing_comment_index}", 'comment')
-              news_comment_item = news_item.search("//*[@id=\"c-#{missing_comment_index}\"]")
-              begin
-                missing_comment = Comment.parse(news_comment_item, comment_retrieval_timestamp)
-                news_comments[missing_comment.news_index] = missing_comment
-              rescue NoMethodError, TypeError => e
-                # TODO: Nothing can be done at this stage as there are no other options to retrieve further comments
-              end
-            end
-          end
+      def initialize(snapshot_timestamp = nil, json_data = nil)
+        unless json_data.nil?
+          @karma = json_data.karma
+          @positive_votes = json_data.positive_votes
+          @negative_votes = json_data.negative_votes
+          @anonymous_votes = json_data.anonymous_votes
+          @num_clicks = json_data.num_clicks
+          @num_comments = json_data.num_comments
         end
 
-        news_comments
+        @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
       end
-
-      def parse_events_log
-        news_log_events = Hash.new
-
-        news_log_item = Wagg::Utils::Retriever.instance.get(Wagg::Utils::Constants::NEWS_LOG_QUERY_URL % {url:@urls['internal']}, 'news')
-        log_items = news_log_item.search('//*[@id="voters-container"]/div')
-        log_items.reverse_each do |log_event_item|
-          log_event_timestamp_item = log_event_item.search('./div[1]/span')
-          log_event_category_item = log_event_item.search('./div[2]')
-          log_event_type_item = log_event_item.search('./div[3]/strong')
-          log_event_user_item = log_event_item.search('./div[4]/a')
-
-          news_log_event = Hash.new
-          news_log_event["user"] = Wagg::Utils::Functions.str_at_xpath(log_event_user_item, './@href')[/\/user\/(?<author_name>.+)/,1]
-          news_log_event["type"] = Wagg::Utils::Constants::NEWS_LOG_EVENT[Wagg::Utils::Functions.str_at_xpath(log_event_type_item, './text()')]
-          news_log_event["category"] = Wagg::Utils::Functions.str_at_xpath(log_event_category_item, './text()').to_s
-
-          news_log_events[Wagg::Utils::Functions.str_at_xpath(log_event_timestamp_item, './@data-ts').to_i] = news_log_event
-        end
-
-        news_log_events
-      end
-
-      def comments_contribution?(comments_item=nil)
-        if comments_item.nil?
-          news_item = Wagg::Utils::Retriever.instance.get(@urls['internal'], 'news')
-          news_comments_item = news_item.search('//*[@id="newswrap"]/div[contains(concat(" ", normalize-space(@class), " "), " comments ")]')
-        else
-          news_comments_item = comments_item
-        end
-        comments_form_item = news_comments_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " commentform ")]')
-
-        comments_form_item.at_xpath('./form').nil?
-      end
-
-      private :parse_comments, :parse_comments_rss, :parse_comments_html, :parse_events_log, :comments_contribution?
-
 
       class << self
-        def parse(url)
-          # We need to track when we make the retrieval and account for the configured delay in the 'pre_connect_hooks'
-          # In theory we should consider the time when the request is executed by the server, but this is good enough
-          news_retrieval_timestamp = Time.now.to_i + Wagg.configuration.retrieval_delay['news']
+        def from_json(string)
+          os_object = JSON.parse(string, { object_class: OpenStruct, quirks_mode: true })
 
-          news_item = Wagg::Utils::Retriever.instance.get(url, 'news').search('//*[@id="newswrap"]')
-          #news_summary_item = news_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-summary ")]')
-          #news_body_item = news_summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
-          news_body_item = news_item.css('div.news-summary > div.news-body')
+          # Some validation that we have the right object
+          if os_object.type == name.split('::').last
+            data = os_object.data
 
-          # Parse the summary of the news (same information we would get from the front page)
-          # Reason for which the tags require the body_item again...
-          news = parse_summary(news_body_item, news_retrieval_timestamp)
+            snapshot_timestamp = Time.at(os_object.timestamp).utc
 
-          # Parse and add tags to the news summary and return it (as a full parsed news now)
-          news.tags = parse_tags(news_body_item)
-
-          # Return the object containing the full news (with votes, comments and tags details)
-          news
-        end
-
-        def parse_summary(body_item, retrieval_timestamp=Time.now.to_i)
-          # Retrieve main news body DOM subtree
-          #body_item = summary_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-body ")]')
-
-          # Parse title and unique id
-          news_title = body_item.at_css('h1 > a,h2 > a').text.strip
-          news_id = body_item.at_css('h1 > a,h2 > a')["class"][/(?<id>\d+)/].to_i
-
-          # Parse (brief) description as text
-          news_content_item = body_item.css("div.news-content")
-          news_description = news_content_item.text.strip
-
-          # Parse URLs (internal and external)
-          news_urls = parse_urls(body_item)
-
-          # Retrieve main news meta-data DOM subtree
-          meta_item = body_item.css('div.news-submitted')
-
-          # Parse sending and publishing timestamps
-          news_timestamps = parse_timestamps(meta_item)
-          news_timestamps["retrieval"] = retrieval_timestamp
-
-          # Parse author of news post (NOT the author(s) of the news itself as we don't know/care about that)
-          news_author = parse_author(meta_item)
-
-          # Retrieve status of news
-          news_status = parse_status(body_item)
-
-          # Retrieve details news meta-data DOM subtree
-          details_item = body_item.search('div.news-details')
-
-          # Parse votes count: up-votes (registered and anonymous users) and down-votes (registered users)
-          news_votes_count = parse_votes_count(details_item, news_id)
-
-          # Parse comments'count
-          news_comments_count = parse_comments_count(details_item)
-
-          # Parse number of clicks
-          clicks_item = body_item.search('.//div[contains(concat(" ", normalize-space(@class), " "), " clics ")]')
-          news_clicks = Wagg::Utils::Functions.str_at_xpath(clicks_item, './text()')[/(?<id>\d+)/].to_i
-
-          # Retrieve secondary details meta-data DOM subtree
-
-          # Parse category
-          # TODO Revise in case they fixed the following issue
-          # Hack to cover for non-given categories in the DOM tree (we may be able to infer them from the URL)
-          #· Example: https://www.meneame.net/m/TeRespondo/soy-disenador-meneame-respondo
-          if details_item.at_css('span.tool.sub-name > a').nil?
-            news_category = nil
-          else
-            news_category = details_item.at_css('span.tool.sub-name > a')['href'][/\/m\/(?<category>.+)/,1]
+            NewsStatistics.new(snapshot_timestamp, data)
           end
-
-          # Parse karma (accumulative sum of users' votes, i.e., news weight)
-          news_karma = details_item.at_css('span.tool.karma > span.karma-value').text.to_i
-
-          # Create the news object (we only create it with data that won't 'change' over time)
-          news = News.new(
-              news_id,
-              news_title,
-              news_author,
-              news_description,
-              news_urls,
-              news_timestamps,
-              news_category,
-              news_status
-          )
-
-          # Fill the remaining details
-          news.clicks = news_clicks
-          news.karma = news_karma
-          news.votes_count = news_votes_count
-          news.comments_count = news_comments_count
-
-          # Return the object containing the summary of the news (no votes, no comments, no tags details)
-          news
         end
-
-        def parse_author(meta_item)
-          author_item = meta_item.search('./a[contains(concat(" ", normalize-space(@class), " "), " tooltip ")]')
-
-          news_author = Hash.new
-          news_author["id"] = Wagg::Utils::Functions.str_at_xpath(author_item, './@class')[/(?<author_id>\d+)/].to_i
-          news_author["name"] = Wagg::Utils::Functions.str_at_xpath(author_item, './@href')[/\/user\/(?<author_name>.+)/,1]
-
-          news_author
-        end
-
-        def parse_urls(body_item)
-          news_urls = Hash.new
-
-          news_urls['external'] = body_item.at_css('h1 > a,h2 > a')["href"]
-          news_urls['internal'] = Wagg::Utils::Constants::SITE_URL + body_item.at_css('div.votes > a')["href"]
-
-          news_urls
-        end
-
-        def parse_timestamps(meta_item)
-          timestamp_items = meta_item.search('./span[contains(concat(" ", normalize-space(@class), " "), " ts ")]')
-
-          news_timestamps = Hash.new
-          for t in timestamp_items
-            case Wagg::Utils::Functions.str_at_xpath(t, './@title')
-              when /\Aenviado:/
-                news_timestamps["creation"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
-              when /\Apublicado:/
-                news_timestamps["publication"] = Wagg::Utils::Functions.str_at_xpath(t, './@data-ts').to_i
-            end
-          end
-
-          news_timestamps
-        end
-
-        def parse_votes_count(details_item, news_id)
-          news_votes_count = Hash.new
-          news_votes_count["positive"] = Wagg::Utils::Functions.str_at_xpath(details_item, './span/span[@id="a-usu-%{id}"]/strong/text()' % {id:news_id}).to_i
-          news_votes_count["negative"] = Wagg::Utils::Functions.str_at_xpath(details_item, './span/span[@id="a-neg-%{id}"]/strong/text()' % {id:news_id}).to_i
-          news_votes_count["anonymous"] = Wagg::Utils::Functions.str_at_xpath(details_item, './span/span[@id="a-ano-%{id}"]/strong/text()' % {id:news_id}).to_i
-
-          news_votes_count
-        end
-
-        def parse_comments_count(details_item)
-          #TODO Improve management of no comments in news (now it says 'sin comentarios' which is converted as a zero by to_i method)
-          details_item.search('a.comments').text[/(?<comments_count>\d+)\scomentarios/,1].to_i
-        end
-
-        def parse_tags(body_item)
-          tags_item = body_item.search('.//span[contains(concat(" ", normalize-space(@class), " "), " news-tags ")]/a')
-
-          news_tags = Array.new
-          for t in tags_item
-            unless Wagg::Utils::Functions.str_at_xpath(t, './text()').nil?
-              unless Wagg::Utils::Functions.str_at_xpath(t, './text()').empty?
-                news_tags.push(Wagg::Utils::Functions.str_at_xpath(t, './text()'))
-              end
-            end
-
-          end
-
-          news_tags
-        end
-
-        def parse_status(body_item)
-          status_main_item = body_item.search('./div[contains(concat(" ", normalize-space(@class), " "), " news-shakeit ")]')
-          status_item = Wagg::Utils::Functions.str_at_xpath(status_main_item, './@class').split
-
-          if status_item.include?(Wagg::Utils::Constants::NEWS_STATUS_TYPE["queued"])
-            news_status = "queued"
-          elsif status_item.include?(Wagg::Utils::Constants::NEWS_STATUS_TYPE["published"])
-            news_status = "published"
-          elsif status_item.include?(Wagg::Utils::Constants::NEWS_STATUS_TYPE["discarded"])
-            news_status = "discarded"
-          else
-            raise error
-          end
-
-          news_status
-        end
-
-        private :parse_author, :parse_urls, :parse_timestamps, :parse_votes_count, :parse_comments_count, :parse_tags, :parse_status
       end
 
+      def as_json(_options = {})
+        {
+          type: self.class.name.split('::').last,
+          timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
+          data: {
+            karma: @karma,
+            positive_votes: @positive_votes,
+            negative_votes: @negative_votes,
+            anonymous_votes: @anonymous_votes,
+            num_clicks: @num_clicks,
+            num_comments: @num_comments
+          }
+        }
+      end
+
+      def to_json(*options)
+        as_json(*options).to_json(*options)
+      end
+    end
+
+    class News < NewsSummary
+      # @!attribute [r] status
+      #   @return [String] the status (published, queued, discarded) of the news
+      # TODO: Figure whether this is really needed or can be extracted from the log_events attribute
+      # attr_reader :status
+      # @!attribute [r] tags
+      #   @return [Array] the list of tags of the news
+      attr_reader :tags
+      # @!attribute [r] karma_events
+      #   @return [Hash] the list of karma events calculations of the news
+      attr_reader :karma_events # Can be nil
+      # @!attribute [r] log_events
+      #   @return [Hash] the list of logged events of the news
+      attr_reader :log_events # Can be nil
+      # @!attribute [r] comments
+      #   @return [ListComments] the list of comments of the news
+      attr_reader :comments
+
+      # @param [String] id_extended
+      # @param [String] comments_mode
+      # @param [nil] snapshot_timestamp
+      # @param [String] json_data
+      def initialize(id_extended, comments_mode = 'rss', snapshot_timestamp = nil, json_data = nil, summary_object = nil)
+        if json_data.nil? && summary_object.nil?
+          @id_extended = id_extended
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+          @raw_data = get_data(format(::Wagg::Constants::News::MAIN_URL, id_extended: @id_extended))
+
+          # TODO: Detect here if it is an article category news or not
+          # "#container > div:nth-child(1) > div > div.col-md-8.col-md-offset-1 > div"
+          if @raw_data.at_css('div#newswrap').nil? && !@raw_data.at_css('div.story-blog').nil?
+            summary_item = @raw_data.at_css('div.story-blog > div.row')
+          else
+            # div#newswrap > div.news-summary
+            summary_item = @raw_data.at_css('div#newswrap > div.news-summary')
+
+            # div#newswrap > div.news-summary > div.news-body > div.center-content > span
+            # document.querySelector("#newswrap > div.news-summary > div > div.center-content > span")
+            tags_item = @raw_data.at_css('div#newswrap > div.news-summary > div.news-body > div.center-content > span')
+            more_tags_item = @raw_data.at_css('div#newswrap > div.news-summary > div > div.center-content > span')
+            puts more_tags_item
+            puts tags_item
+            parse_tags(tags_item)
+            # parse_summary
+            super(summary_item, @snapshot_timestamp)
+          end
+
+          parse_log
+          parse_votes
+          parse_comments(comments_mode)
+        elsif summary_object.nil?
+          @id = json_data.id
+          @id_extended = json_data.id_extended
+          @title = json_data.title
+          @author = ::Wagg::Crawler::FixedAuthor.from_json(json_data.author)
+          @link = json_data.link
+          @permalink_id = json_data.permalink_id
+          @body = json_data.body
+          @timestamps = json_data.timestamps.to_h.transform_values { |v| Time.at(v).utc.to_datetime }
+          @category = json_data.category
+          @statistics = ::Wagg::Crawler::NewsStatistics.from_json(json_data.statistics)
+
+          @tags = json_data.tags
+          @karma_events = json_data.karma_events.to_h
+          karma_events_list = @karma_events[:karma].map { |karma_event| [karma_event[0], karma_event[1].to_h] }
+          @karma_events[:karma] = karma_events_list
+          @log_events = json_data.log_events.to_h.map { |k, v| [k.to_s.to_i, v.to_h] }.to_h
+
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+        else
+          @id = summary_object.id
+          @id_extended = summary_object.id_extended
+          @title = summary_object.title
+          @author = summary_object.author
+          @link = summary_object.link
+          @permalink_id = summary_object.permalink_id
+          @body = summary_object.body
+          @timestamps = summary_object.timestamps
+          @category = summary_object.category
+          @statistics = summary_object.statistics
+          # @votes = summary_object.votes
+
+          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+        end
+      end
+
+      class << self
+        def parse(id_extended, comments_mode = 'rss')
+          News.new(id_extended, comments_mode)
+        end
+
+        def from_json(string)
+          os_object = JSON.parse(string, { object_class: OpenStruct, quirks_mode: true })
+
+          # Some validation that we have the right object
+          if os_object.type == name.split('::').last
+            data = os_object.data
+
+            snapshot_timestamp = Time.at(os_object.timestamp).utc
+
+            News.new(nil, nil, snapshot_timestamp, data, nil)
+          end
+        end
+
+        def from_summary(summary)
+          if summary.class.name.split('::').last == 'NewsSummary'
+            snapshot_timestamp = summary.snapshot_timestamp
+
+            News.new(nil, nil, snapshot_timestamp, nil, summary)
+          end
+        end
+      end
+
+      def get_data(uri, custom_retriever = nil)
+        retriever = if custom_retriever.nil?
+                      ::Wagg::Utils::Retriever.instance
+                    else
+                      custom_retriever
+                    end
+
+        retriever.get(uri, ::Wagg::Constants::Retriever::AGENT_TYPE['news'], false)
+      end
+
+      def parse_tags(tags_item)
+        tags_items_list = tags_item.css('a')
+
+        tags = []
+        tags_items_list.each do |tag_item|
+          tag_href = ::Wagg::Utils::Functions.text_at_xpath(tag_item, './@href')
+          if tag_href.match?(::Wagg::Constants::Tag::NAME_REGEX)
+            tag_href_matched = tag_href.match(::Wagg::Constants::Tag::NAME_REGEX)
+            tag = CGI.unescape(tag_href_matched[:tag].strip).unicode_normalize(:nfkc)
+          end
+          tags << tag
+        end
+
+        @tags = tags
+      end
+
+      def parse_log
+        log_uri = format(::Wagg::Constants::News::LOG_URL, id_extended: @id_extended)
+
+        log_raw_data = get_data(log_uri)
+
+        # Closed news will lack this information
+        if log_raw_data.at('div#voters > fieldset > div#voters-container > div')
+          log_events_table_items = log_raw_data.css('div#voters > fieldset > div#voters-container > div')
+          @log_events = parse_status_events(log_events_table_items)
+        else # ::Wagg::Utils::Functions.text_at_css(log_raw_data, 'div#voters > fieldset > div#voters-container') == 'no hay registros'
+          @log_events = nil
+        end
+
+        # Very old news won't have this information
+        if log_raw_data.at('div#newswrap > script')
+          log_karma_events_script_items = log_raw_data.css('div#newswrap > script')
+          # log_karma_events_script_items = log_raw_data.xpath('div[@id="container"]/div//script')
+          @karma_events = parse_karma_events(log_karma_events_script_items)
+        else
+          @karma_events = nil
+        end
+      end
+
+      def parse_status_events(events_table_items)
+        status_events = []
+
+        events_table_items.each do |event_item|
+          event_timestamp_item = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[1]/span/@data-ts')
+          event_timestamp = event_timestamp_item.to_i
+
+          event_category = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[2]/text()')
+
+          event_type = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[3]/strong/text()')
+
+          event_author_item = ::Wagg::Utils::Functions.text_at_xpath(event_item, './div[4]/a/@href')
+          if event_author_item.match?(%r{\A/user/(?<author>.+)\z})
+            event_author_matched = event_author_item.match(%r{\A/user/(?<author>.+)\z})
+            event_author = event_author_matched[:author]
+          else
+            event_author = nil
+          end
+
+          event_data = {
+            'category' => event_category,
+            'type' => event_type,
+            'author' => event_author
+          }
+          status_events.append([Time.at(event_timestamp).to_datetime, event_data])
+        end
+
+        status_events
+      end
+
+      def parse_karma_events(script_items)
+        # First parse JSON of events at ::Wagg::Constants::News::KARMA_STORY_JSON_URL
+        story_events_uri = format(::Wagg::Constants::News::KARMA_STORY_JSON_URL, id: @id)
+
+        story_events_raw_data = get_data(story_events_uri)
+
+        story_events_json = JSON.parse(story_events_raw_data.body, { quirks_mode: true })
+
+        story_events = {}
+        story_events_json.each do |story|
+          label = story['label']
+          data = story['data']
+
+          story_events[label] = data.map { |event| [Time.at(event[0] / 1000.0).to_datetime, event[1].to_i] }
+        end
+
+        # Thereafter parse the extra attributes of each 'karma' event
+        # And cool stuff by the way, interpret JavaScript and store the results!
+        context = MiniRacer::Context.new
+        context.eval(script_items.at_xpath('.').text)
+        k_coef_keys = context.eval('Object.keys(k_coef);')
+        k_coef_values = context.eval('Object.values(k_coef);')
+        karma_coef = Hash[k_coef_keys.zip k_coef_values]
+
+        k_old_keys = context.eval('Object.keys(k_old);')
+        k_old_values = context.eval('Object.values(k_old);')
+        karma_old = Hash[k_old_keys.zip k_old_values]
+
+        k_annotation_keys = context.eval('Object.keys(k_annotation);')
+        k_annotation_values = context.eval('Object.values(k_annotation);')
+        karma_annotation = Hash[k_annotation_keys.zip k_annotation_values]
+
+        k_site_keys = context.eval('Object.keys(k_site);')
+        k_site_values = context.eval('Object.values(k_site);')
+        karma_site = Hash[k_site_keys.zip k_site_values]
+
+        karma_events = {}
+        karma_coef.each do |key, _value|
+          karma_events[Time.at(key.to_i).to_datetime] = {
+            'coef' => karma_coef[key],
+            'old' => karma_old[key],
+            'annotation' => karma_annotation[key],
+            'site' => karma_site[key]
+          }
+        end
+
+        # Finally merge the extra attributes of each 'karma' event with the events' JSON
+        story_karma_events = []
+        story_events['karma'].each do |karma_event|
+          event = karma_events[karma_event[0]]
+          event['current'] = karma_event[1]
+          story_karma_events.append([karma_event[0], event])
+        end
+        story_events['karma'] = story_karma_events
+
+        story_events
+      end
+
+      def parse_comments(mode = 'rss')
+        @comments = if mode == 'rss'
+                      ::Wagg::Crawler::ListComments.new(@id, @statistics.num_comments, mode)
+                    else
+                      ::Wagg::Crawler::ListComments.new(@id_extended, @statistics.num_comments, mode)
+                    end
+      end
+
+      private :parse_status_events, :parse_karma_events
+
+      def as_json(_options = {})
+        {
+          type: self.class.name.split('::').last,
+          timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
+          data: {
+            id: @id.to_i,
+            id_extended: @id_extended,
+            title: @title,
+            author: @author.to_json,
+            link: @link,
+            permalink_id: @permalink_id,
+            body: body,
+            timestamps: ::Wagg::Utils::Functions.hash_str_datetime_to_json(@timestamps, true),
+            category: @category,
+            statistics: @statistics.to_json,
+            tags: @tags,
+            karma_events: (@karma_events.nil? ? {} : @karma_events),
+            log_events: (@log_events.nil? ? {} : @log_events)
+            # comments: TODO
+          }
+        }
+      end
+
+      def to_json(*options)
+        as_json(*options).to_json(*options)
+      end
     end
   end
 end

@@ -1,149 +1,162 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
-require 'wagg/utils/constants'
-require 'wagg/utils/functions'
+require 'wagg/crawler/author'
 
 module Wagg
   module Crawler
     class Vote
-      attr_reader :author, :rate, :weight, :timestamp, :item, :type
+      attr_reader :type, :author, :sign, :weight, :timestamp
 
-      def initialize(author, weight, rate, timestamp, item, type)
-        @author = author
-        @timestamp = timestamp
-        @item = item
+      def initialize(type, author_name, author_id, sign, weight, timestamp, snapshot_timestamp = nil)
+        @type = type # ::Wagg::Constants::Vote::TYPE[type]
+        @author = ::Wagg::Crawler::FixedAuthor.new(author_name, author_id, snapshot_timestamp)
+        @sign = sign
         @weight = weight
-        @rate = rate
-        @type = type
+        @timestamp = timestamp
+        @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+      end
+    end
+
+    class ListVotes
+      attr_reader :id, :votes
+
+      def num_votes
+        @votes.length
       end
 
-      def to_s
-        "VOTE : %{ts} (%{t}) :: %{w} (%{r}) - %{a}" % {ts:Time.at(@timestamp), t:@type, a:@author, w:@weight, r:@rate}
+      def positive_votes
+        signs = @votes.map do |vote|
+          vote.sign == ::Wagg::Constants::Vote::SIGN['positive'] ? 1 : 0
+        end
+
+        signs.sum
+      end
+
+      def negative_votes
+        num_votes - positive_votes
+      end
+
+      def initialize(id, type = ::Wagg::Constants::Vote::TYPE['news'])
+        @id = id
+        @votes = parse(id, type)
+      end
+
+      def get_data(uri, custom_retriever = nil)
+        retriever = if custom_retriever.nil?
+                      ::Wagg::Utils::Retriever.instance
+                    else
+                      custom_retriever
+                    end
+
+        retriever.get(uri, ::Wagg::Constants::Retriever::AGENT_TYPE['vote'], false)
+      end
+
+      def parse(id, type = ::Wagg::Constants::Vote::TYPE['news'])
+        min_page = 1
+        max_page = min_page
+        case type
+        when /\A#{::Wagg::Constants::Vote::TYPE['news']}\z/
+          votes_uri = format(::Wagg::Constants::News::VOTES_QUERY_URL, id: id, page: min_page)
+        when /\A#{::Wagg::Constants::Vote::TYPE['comment']}\z/
+          votes_uri = format(::Wagg::Constants::Comment::VOTES_QUERY_URL, id: id, page: min_page)
+        end
+        votes_list = []
+
+        votes_raw_data = get_data(votes_uri)
+        pages_item = votes_raw_data.css('div.pages > a')
+        pages_item.each do |page_item|
+          num_page = ::Wagg::Utils::Functions.text_at_xpath(page_item, './text()').to_i
+          max_page = num_page if max_page < num_page
+        end
+
+        (min_page..max_page).each do |page|
+          snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
+          case type
+          when /\A#{::Wagg::Constants::Vote::TYPE['news']}\z/
+            votes_uri = format(::Wagg::Constants::News::VOTES_QUERY_URL, id: id, page: page)
+          when /\A#{::Wagg::Constants::Vote::TYPE['comment']}\z/
+            votes_uri = format(::Wagg::Constants::Comment::VOTES_QUERY_URL, id: id, page: page)
+          end
+          votes_raw_data = get_data(votes_uri)
+
+          #  div.voters-list > div > a
+          votes_list_item = votes_raw_data.css('div.voters-list > div')
+          votes_list_item.each do |vote_item|
+            author_name_item = ::Wagg::Utils::Functions.text_at_xpath(vote_item, './a/@href')
+            author_name_matched = author_name_item.match(%r{\A/user/(?<author>.+)\z})
+            author_name = author_name_matched[:author]
+            # author_id_item = ::Wagg::Utils::Functions.text_at_xpath(vote_item, './a/img/@src')
+            # author_id_matched = author_id_item.match(::Wagg::Constants::Author::AVATAR_REGEX)
+            # author_id = (author_id_matched[:id] unless author_id_matched.nil? || author_id_matched[:id].nil?)
+            author_id_item = vote_item.at_css('a > img')
+            author_id = ::Wagg::Crawler::Author.parse_id_from_img(author_id_item)
+
+            timestamp_weight_item = ::Wagg::Utils::Functions.text_at_xpath(vote_item, './a/@title')
+            case type
+            when /\A#{::Wagg::Constants::Vote::TYPE['news']}\z/
+              timestamp_weight_matched = timestamp_weight_item.match(::Wagg::Constants::Vote::NEWS_REGEX)
+              vote_hash = timestamp_weight_matched.named_captures
+              if vote_hash['datetime'].nil? && !vote_hash['time'].nil?
+                now = DateTime.now.new_offset # Current datetime in UTC
+                vote_date = DateTime.strptime("#{now.strftime('%d-%m-%Y')} #{vote_hash['time']}", '%d-%m-%Y %H:%M %Z')
+              else
+                vote_date = DateTime.strptime(vote_hash['datetime'], '%d-%m-%Y %H:%M %Z')
+              end
+              if vote_hash['weight']
+                # Positive votes have a weight
+                vote_sign = ::Wagg::Constants::Vote::NEWS_SIGN['positive']
+                vote_weight = vote_hash['weight'].to_i
+              else
+                # Negative votes do NOT have a weight
+                vote_weight_sign = ::Wagg::Utils::Functions.text_at_xpath(vote_item, './span/text()')
+                vote_sign = ::Wagg::Constants::Vote::NEWS_SIGN['negative']
+                vote_weight = ::Wagg::Constants::Vote::NEWS_NEGATIVE_WEIGHT[vote_weight_sign]
+              end
+            when /\A#{::Wagg::Constants::Vote::TYPE['comment']}\z/
+              timestamp_weight_matched = timestamp_weight_item.match(::Wagg::Constants::Vote::COMMENT_REGEX)
+              vote_hash = timestamp_weight_matched.named_captures
+              now = DateTime.now.new_offset # Current datetime in UTC
+              vote_date = DateTime.strptime("#{now.strftime('%Y')}/#{vote_hash['datetime']} UTC",
+                                            '%Y/%d/%m-%H:%M:%S %Z')
+              vote_weight = vote_hash['weight'].to_i
+              vote_sign = if vote_weight >= 0
+                            ::Wagg::Constants::Vote::COMMENT_SIGN['positive']
+                          else
+                            ::Wagg::Constants::Vote::COMMENT_SIGN['negative']
+                          end
+            end
+
+            vote = ::Wagg::Crawler::Vote.new(type, author_name, author_id, vote_sign, vote_weight, vote_date,
+                                             snapshot_timestamp)
+            votes_list << vote
+          end
+        end
+
+        votes_list
+      end
+    end
+
+    class NewsVotes < ListVotes
+      def initialize(id)
+        super(id, ::Wagg::Constants::Vote::TYPE['news'])
       end
 
       class << self
-        def parse_news_votes(news_id)
-          parse(news_id, Wagg::Utils::Constants::NEWS_VOTES_QUERY_URL, Wagg::Utils::Constants::VOTE_NEWS)
+        def parse(id)
+          NewsVotes.new(id)
         end
+      end
+    end
 
-        def parse_comment_votes(comment_id)
-          parse(comment_id, Wagg::Utils::Constants::COMMENT_VOTES_QUERY_URL, Wagg::Utils::Constants::VOTE_COMMENT)
+    class CommentVotes < ListVotes
+      def initialize(id)
+        super(id, ::Wagg::Constants::Vote::TYPE['comment'])
+      end
+
+      class << self
+        def parse(id)
+          CommentVotes.new(id)
         end
-
-        def parse(item, url_template, type)
-          votes = Array.new
-
-          p = 1
-          begin
-            # Retrieve subpage with votes
-            votes_subpage = Wagg::Utils::Retriever.instance.get(url_template % {id:item, page:p}, 'vote')
-
-            votes_retrieval_timestamp = Time.now.utc + Wagg.configuration.retrieval_delay['vote']
-
-            # Find all votes: 'a' tags in DOM tree
-            votes_partial_list = votes_subpage.search('.//div[contains(concat(" ", normalize-space(@class), " "), " voters-list ")]/div')
-
-            # Process votes per sé (mainly parsing the 'title' attribute of the 'a' tag)
-            for v in votes_partial_list
-              vote_item = Wagg::Utils::Functions.str_at_xpath(v, './a/@title').match(Wagg::Utils::Constants::VOTE_RE)
-
-              # Author's string name ONLY (no id...)
-              # TODO: Should we retrieve the id from its personal section in the site? Not good idea: one query more per vote
-              vote_author = vote_item.captures[0]
-              vote_timestamp = case vote_item.captures[1]
-                                 # Comment regex: DD/MM-HH:MM:SS
-                                 # YYYY has to be inferred
-                                 # No TMZ provided, enforced UTC like the rest of the site
-                                 # Checked that TMZ is UTC
-                                 when /\A\d{1,2}\/\d{1,2}-\d{1,2}:\d{1,2}:\d{1,2}\z/
-                                   # if month and day more than today... YYYY = current_year -1
-                                   # else YYYY = current_year
-                                   vote_adjusted_timestamp = vote_item.captures[1] + ' UTC'
-                                   if DateTime.strptime(vote_adjusted_timestamp,'%d/%m-%H:%M:%S %Z').to_time > votes_retrieval_timestamp
-                                     vote_adjusted_timestamp = (votes_retrieval_timestamp - 365*24*60*60).year.to_s + '/' + vote_item.captures[1] + ' UTC'
-                                   else
-                                     vote_adjusted_timestamp = votes_retrieval_timestamp.year.to_s + '/' + vote_item.captures[1] + ' UTC'
-                                   end
-                                   DateTime.strptime(vote_adjusted_timestamp,'%Y/%d/%m-%H:%M:%S %Z').to_time.to_i
-                                 # News regex: HH:MM TMZ
-                                 # DD/MM have to be inferred
-                                 when /\A\d{1,2}:\d{1,2}\s[A-Z]+\z/
-                                   #DateTime.strptime(vote_item.captures[1],'%H:%M %Z').to_time.to_i
-                                   # Check if we are on the same (===) day
-                                   if votes_retrieval_timestamp.to_date === (votes_retrieval_timestamp - (20*60*60)).to_date ||
-                                     vote_item.captures[1][/(\d{2}:\d{2})/] <= votes_retrieval_timestamp.strftime('%H:%M')
-                                     vote_date_string =
-                                         votes_retrieval_timestamp.day.to_s +
-                                         '-' +
-                                         votes_retrieval_timestamp.month.to_s +
-                                         '-' +
-                                         votes_retrieval_timestamp.year.to_s
-                                   else
-                                     votes_retrieval_timestamp_adjusted = votes_retrieval_timestamp - 24*60*60
-                                     vote_date_string =
-                                         votes_retrieval_timestamp_adjusted.day.to_s +
-                                         '-' +
-                                         votes_retrieval_timestamp_adjusted.month.to_s +
-                                         '-' +
-                                         votes_retrieval_timestamp_adjusted.year.to_s
-                                   end
-                                   vote_adjusted_timestamp = vote_date_string + ' ' + vote_item.captures[1]
-                                   DateTime.strptime(vote_adjusted_timestamp, '%d-%m-%Y %H:%M %Z').to_time.to_i
-                                 # News regex: DD-MM-YYYY HH:MM TMZ
-                                 when /\A\d{1,2}-\d{1,2}-\d{4}\s\d{1,2}:\d{1,2}\s[A-Z]+\z/
-                                   DateTime.strptime(vote_item.captures[1], '%d-%m-%Y %H:%M %Z').to_time.to_i
-                               end
-              if vote_item.captures[2].nil?
-                # Vote is negative so we take the weight of the vote's author
-                author_cutoff_timestamp = DateTime.strptime(
-                    votes_retrieval_timestamp.day.to_s +
-                        '-' +
-                        votes_retrieval_timestamp.month.to_s +
-                        '-' +
-                        votes_retrieval_timestamp.year.to_s +
-                        ' ' +
-                        Wagg::Utils::Constants::AUTHOR_WEIGHT_CUTOFF_TIME,
-                    '%d-%m-%Y %H:%M:%S %Z').to_time.to_i
-                # TODO Document this mess...
-                # In short: either vote and retrieval timestamps are on same day (and both before/after cut-off time)
-                #           or vote timestamp is one day before retrieval's one and then vote happens after its cut-off
-                #           while retrieval's happens before its cut-off
-                if (Time.at(vote_timestamp).to_date === votes_retrieval_timestamp.to_date &&
-                    ((vote_timestamp <= author_cutoff_timestamp && votes_retrieval_timestamp.to_i <= author_cutoff_timestamp) ||
-                        (vote_timestamp > author_cutoff_timestamp && votes_retrieval_timestamp.to_i > author_cutoff_timestamp))) ||
-                    (Time.at(vote_timestamp + (24*60*60)).to_date === votes_retrieval_timestamp.to_date &&
-                    Time.at(vote_timestamp) > Time.at(author_cutoff_timestamp - (24*60*60)) && votes_retrieval_timestamp.to_i <= author_cutoff_timestamp)
-                  vote_karma = -1 * Author.parse(vote_author).karma.round
-                else
-                  vote_karma = nil
-                end
-                vote_rate = Wagg::Utils::Constants::VOTE_NEWS_DOWNRATE[Wagg::Utils::Functions.str_at_xpath(v, './span/text()')]
-              else
-                vote_karma = vote_item.captures[2].to_i
-
-                # By default we assume it is a positive vote for news, if not, we check for the weight
-                vote_rate = Wagg::Utils::Constants::VOTE_NEWS_UPRATE
-                if type == Wagg::Utils::Constants::VOTE_COMMENT
-                  if vote_karma > 0
-                    vote_rate = Wagg::Utils::Constants::VOTE_COMMENT_UPRATE
-                  else
-                    vote_rate = Wagg::Utils::Constants::VOTE_COMMENT_DOWNRATE
-                  end
-                end
-
-              end
-              vote_type = type
-
-              vote = Vote.new(vote_author, vote_karma, vote_rate, vote_timestamp, item, vote_type)
-              votes.unshift(vote)
-            end
-            p += 1
-          end until votes_partial_list.empty?
-
-          votes
-        end
-
-        private :parse
       end
     end
   end

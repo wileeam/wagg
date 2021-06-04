@@ -1,63 +1,101 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
-# @author Guillermo Rodríguez Cano <gurc@kth.se>
+require 'logger'
+require 'yaml'
 
-require 'wagg/utils/functions'
-require 'wagg/utils/configuration'
+require 'wagg/version'
 
-require 'wagg/crawler/page'
-require 'wagg/crawler/author'
+require 'wagg/utils/retriever'
 
+require_relative 'wagg/crawler/author'
+require_relative 'wagg/crawler/news'
+require_relative 'wagg/crawler/news_summary'
+require_relative 'wagg/crawler/comment'
+require_relative 'wagg/crawler/page'
 
 module Wagg
+  # class Error < StandardError; end
 
   class << self
-    attr_writer :configuration
-  end
-
-  def self.configuration
-    @configuration ||= Wagg::Utils::Configuration.new
-  end
-
-  def self.reset
-    @configuration = Wagg::Utils::Configuration.new
-  end
-
-  def self.configure
-    yield(configuration) if block_given?
-  end
-
-  class << self
-
-    # Parse the summaries of the news for the given page interval
-    # @param type [String] the status of desired news
-    # @param intervals [{FixNum => FixNum}] the intervals of the pages with the desired news
-    # @return [nil] the parsed desired news
-    def page(type='published', **intervals)
-      intervals.has_key?(:begin_interval) ? begin_interval = intervals[:begin_interval] : begin_interval = 1
-      intervals.has_key?(:end_interval) ? end_interval = intervals[:end_interval] : end_interval = begin_interval
-
-      Crawler::Page.parse_interval(begin_interval, end_interval, type)
-    end
-
     def author(name)
       Crawler::Author.parse(name)
     end
 
-    def news(news_url)
-      Crawler::News.parse(news_url)
+    def page(index, type)
+      Crawler::Page.parse(index, type)
     end
 
-    def comment(comment_id)
-      Crawler::Comment.parse_by_id(comment_id)
+    def news(id_extended, comments_mode = 'rss')
+      Crawler::News.parse(id_extended, comments_mode)
     end
 
-    def votes_for_news(news_id)
-      Crawler::Vote.parse_news_votes(news_id)
+    def comment(_id)
+      false
     end
 
-    def votes_for_comment(comment_id)
-      Crawler::Vote.parse_comment_votes(comment_id)
+    def votes(_id, _type = 'news')
+      false
+    end
+
+    def settings
+      Settings.configuration
+    end
+  end
+
+  module Settings
+    class << self
+      attr_accessor :configuration
+    end
+
+    def self.configuration
+      @configuration ||= Configuration.new
+    end
+
+    def self.configure
+      self.configuration ||= Configuration.new
+      yield(configuration)
+    end
+
+    def self.reset
+      self.configuration = Configuration.new
+    end
+
+    class Configuration
+      attr_accessor :credentials
+
+      def initialize
+        @credentials = {'username' => nil, 'password' => nil}
+
+        secrets_path = ::Wagg::Constants::Retriever::CREDENTIALS_PATH
+        if File.file?(secrets_path)
+          credentials_yaml = YAML.safe_load(File.read(secrets_path))
+
+          @credentials['username'] = credentials_yaml['username']
+          @credentials['password'] = credentials_yaml['password']
+        end
+      end
+
+      # def credentials?
+      #   if @credentials.key?("username") && @credentials.key?("password")
+      #     if !@credentials.key?("username").nil? && !@credentials.key?("password").nil?
+      #       return !@credentials.key?("username").empty? && !@credentials.key?("password").empty?
+      #     end
+      #   end
+      #
+      #   return FALSE
+      # end
+    end
+  end
+
+  class Logging
+    def self.log
+      if @logger.nil?
+        @logger = Logger.new(STDOUT)
+        @logger.level = Logger::DEBUG
+        @logger.datetime_format = '%Y-%m-%d %H:%M:%S '
+      end
+
+      @logger
     end
   end
 
