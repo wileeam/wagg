@@ -1,6 +1,6 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 class NewsTest < MiniTest::Test
   def setup
@@ -24,20 +24,17 @@ class NewsTest < MiniTest::Test
 
   def test_get_story_of_news_events
     id_extended_news = 'marruecos-anunciara-proximas-horas-ruptura-relaciones-espana'
-    #id_extended_news = 'sitios-interesantes-google-maps'
+    # id_extended_news = 'sitios-interesantes-google-maps'
     news = ::Wagg.news(id_extended_news)
 
     news.karma_events
     # TODO(guillermo): do me!
-
   end
 
   def test_get_category_of_article_news
-    #id_extended_article_category_news = 'motivo-cual-entrais-meneame'
+    # id_extended_article_category_news = 'motivo-cual-entrais-meneame'
     id_extended_article_category_news = 'golpe-chile-richard-nixon-hay-forma-desbancar-allende-mejor'
-    news = ::Wagg.news(id_extended_article_category_news)
-
-    news
+    ::Wagg.news(id_extended_article_category_news)
   end
 
   def test_get_summary_of_news
@@ -59,7 +56,7 @@ class NewsTest < MiniTest::Test
     id_extended_news = 'pp-pide-hbo-retire-cartel-patria-equipara-victimas-verdugos'
     news = ::Wagg.news(id_extended_news)
 
-    expected_tags = %w[pp patria ofensa víctimas verdugos hbo retirada].map { |tag| tag.unicode_normalize(:nfkc)}
+    expected_tags = %w[pp patria ofensa víctimas verdugos hbo retirada].map { |tag| tag.unicode_normalize(:nfkc) }
     actual_tags = news.tags
 
     assert_equal(expected_tags.length, actual_tags.length)
@@ -77,5 +74,4 @@ class NewsTest < MiniTest::Test
 
     assert_equal(expected_news_json, actual_news_json)
   end
-
 end

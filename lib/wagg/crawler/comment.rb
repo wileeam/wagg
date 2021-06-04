@@ -1,13 +1,11 @@
-# encoding: UTF-8
+# frozen_string_literal: true
 
 module Wagg
   module Crawler
     # Since we take repeated snapshots of a news we need a versioning abstraction
     # which happens to be the statistics of the news
     class CommentStatistics
-      attr_accessor :karma
-      attr_accessor :positive_votes
-      attr_accessor :negative_votes
+      attr_accessor :karma, :positive_votes, :negative_votes
 
       def num_votes
         if @positive_votes.nil? && @negative_votes.nil?
@@ -45,6 +43,7 @@ module Wagg
       # @!attribute [r] statistics
       #   @return [CommentStatistics] the statistics of the comment
       attr_reader :statistics
+
       # @!attribute [r] votes
       #   @return [Array] the list of votes of the comment
       def votes
@@ -55,7 +54,7 @@ module Wagg
         end
       end
 
-      def initialize(raw_data, mode='rss', snapshot_timestamp = nil)
+      def initialize(raw_data, mode = 'rss', snapshot_timestamp = nil)
         @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
         @raw_data = raw_data
 
@@ -75,25 +74,18 @@ module Wagg
 
       class << self
         def parse(raw_data, mode, snapshot_timestamp)
-          comment = Comment.new(raw_data, mode, snapshot_timestamp)
-
-          comment
+          Comment.new(raw_data, mode, snapshot_timestamp)
         end
       end
 
-      def get_data(uri, retriever = nil, retriever_type = ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['comment'])
-        if retriever.nil?
-          local_retriever = ::Wagg::Utils::Retriever.instance
-          credentials = ::Wagg::Settings.configuration.credentials
-        else
-          credentials = ::Wagg::Settings.configuration.credentials
-        end
+      def get_data(uri, custom_retriever = nil)
+        retriever = if custom_retriever.nil?
+                      ::Wagg::Utils::Retriever.instance
+                    else
+                      custom_retriever
+                    end
 
-        agent = local_retriever.agent(retriever_type)
-        page = agent.get uri
-        # page.encoding = 'utf-8'
-        # page.body.force_encoding('utf-8')
-        page
+        retriever.get(uri, ::Wagg::Constants::Retriever::AGENT_TYPE['comment'], false)
       end
 
       def uri
@@ -101,7 +93,7 @@ module Wagg
       end
 
       def permalink
-        format(::Wagg::Constants::Comment::MAIN_URL % {id:@id})
+        format(format(::Wagg::Constants::Comment::MAIN_URL, id: @id))
       end
 
       def parse_votes
@@ -112,30 +104,30 @@ module Wagg
 
       def parse_html(raw_data)
         index_item = ::Wagg::Utils::Functions.text_at_xpath(raw_data, './div/@id')
-        index_matched = index_item.match(%r{\Ac\-(?<index>\d+)\z})
+        index_matched = index_item.match(/\Ac-(?<index>\d+)\z/)
         @index = index_matched[:index].to_i
 
         id_item = ::Wagg::Utils::Functions.text_at_xpath(raw_data, './div/@data-id')
-        id_matched = id_item.match(%r{\Acomment\-(?<id>\d+)\z})
+        id_matched = id_item.match(/\Acomment-(?<id>\d+)\z/)
         @id = id_matched[:id]
 
         header_item = raw_data.css('div > div.comment-body > div.comment-header')
         author_name_item = header_item.css('a.username')
         author_name = ::Wagg::Utils::Functions.text_at_xpath(author_name_item, './@href')
-        author_name_matched = author_name.match(%r{\A\/user\/(?<author>.+)\/commented\z})
+        author_name_matched = author_name.match(%r{\A/user/(?<author>.+)/commented\z})
         author_name = author_name_matched[:author]
         author_id_item = header_item.at_css('img')
-        author_id = ::Wagg::Crawler::Author.get_id(author_id_item)
+        author_id = ::Wagg::Crawler::Author.parse_id_from_img(author_id_item)
         @author = ::Wagg::Crawler::FixedAuthor.new(author_name, author_id, @snapshot_timestamp)
 
-        timestamps = Hash.new
+        timestamps = {}
         timestamps_items = header_item.css('span.ts')
         timestamps_items.each do |timestamp_item|
           case ::Wagg::Utils::Functions.text_at_xpath(timestamp_item, './@title')
-          when /\Acreado\:\z/
+          when /\Acreado:\z/
             timestamp_created = ::Wagg::Utils::Functions.text_at_xpath(timestamp_item, './@data-ts').to_i
             timestamps[::Wagg::Constants::Comment::STATUS_TYPE['created']] = timestamp_created
-          when /\Aeditado\:\z/
+          when /\Aeditado:\z/
             timestamp_edited = ::Wagg::Utils::Functions.text_at_xpath(timestamp_item, './@data-ts').to_i
             timestamps[::Wagg::Constants::Comment::STATUS_TYPE['edited']] = timestamp_edited
           end
@@ -144,8 +136,8 @@ module Wagg
 
         body_item = raw_data.css('div > div.comment-body > div.comment-text')
         body = body_item.inner_html.strip
-        if body.match?(%r{\A.+(?<get_comment>href\=\"javascript\:get\_votes\(\'get\_comment\.php\'\,\'comment\'\,\'cid\-#{@id}\'\,0\,#{@id}\)\").+\z})
-          # TODO RETRIEVE AGAIN
+        if body.match?(/\A.+(?<get_comment>href="javascript:get_votes\('get_comment\.php','comment','cid-#{@id}',0,#{@id}\)").+\z/)
+          # TODO: RETRIEVE AGAIN
           @body = parse_hidden_body
         else
           @body = body
@@ -153,10 +145,10 @@ module Wagg
 
         statistics = ::Wagg::Crawler::CommentStatistics.new(@snapshot_timestamp)
         footer_item = raw_data.css('div > div.comment-footer')
-        votes_counter_item = footer_item.css('[id="vc-%{id}"]' % {id:@id})
+        votes_counter_item = footer_item.css(format('[id="vc-%{id}"]', id: @id))
         votes_counter = ::Wagg::Utils::Functions.text_at_xpath(votes_counter_item, './text()').to_i
         statistics.num_votes = votes_counter
-        karma_item = footer_item.css('[id="vk-%{id}"]' % {id:@id})
+        karma_item = footer_item.css(format('[id="vk-%{id}"]', id: @id))
         karma = ::Wagg::Utils::Functions.text_at_xpath(karma_item, './text()').to_i
         statistics.karma = karma
         @statistics = statistics
@@ -167,7 +159,7 @@ module Wagg
         @author = ::Wagg::Crawler::FixedAuthor.new(raw_data.author)
         @body = raw_data.body
         @index = raw_data.index.to_i
-        @timestamp = Hash.new
+        @timestamp = {}
         # @timestamp['creation'] = DateTime.strptime(raw_data.published, '%a, %d %b %Y %H:%M:%S %z')
         @timestamp['creation'] = raw_data.published.to_i
         statistics = ::Wagg::Crawler::CommentStatistics.new(@snapshot_timestamp)
@@ -187,13 +179,12 @@ module Wagg
     end
 
     class ListComments
-      attr_reader :id
-      attr_reader :parser
-      attr_reader :comments
-      alias :list :comments
+      attr_reader :id, :parser, :comments
+      alias list comments
       def first
         @comments.first
       end
+
       def last
         @comments.last
       end
@@ -204,23 +195,18 @@ module Wagg
         parse(id, num_comments, mode)
       end
 
-      def get_data(uri, retriever = nil, retriever_type = ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['comment'])
-        if retriever.nil?
-          local_retriever = ::Wagg::Utils::Retriever.instance
-          credentials = ::Wagg::Settings.configuration.credentials
-        else
-          credentials = ::Wagg::Settings.configuration.credentials
-        end
+      def get_data(uri, custom_retriever = nil)
+        retriever = if custom_retriever.nil?
+                      ::Wagg::Utils::Retriever.instance
+                    else
+                      custom_retriever
+                    end
 
-        agent = local_retriever.agent(retriever_type)
-        page = agent.get uri
-        # page.encoding = 'utf-8'
-        # page.body.force_encoding('utf-8')
-        page
+        retriever.get(uri, ::Wagg::Constants::Retriever::AGENT_TYPE['comment'], false)
       end
 
       def as_hash
-        keys = @comments.map { |comment| comment.index }
+        keys = @comments.map(&:index)
         values = @comments
 
         Hash[keys.zip(values)]
@@ -245,11 +231,11 @@ module Wagg
           end
         when /\Ahtml\z/
           num_pages, remaining_comments = num_comments.divmod(::Wagg::Constants::News::COMMENTS_URL_MAX_PAGE)
-          num_pages += 1 if remaining_comments > 0
+          num_pages += 1 if remaining_comments.positive?
           (1..num_pages).each do |page|
             snapshot_timestamp = Time.now.utc
 
-            comments_html_uri = format(::Wagg::Constants::News::COMMENTS_URL, {id_extended: id_news, page: page})
+            comments_html_uri = format(::Wagg::Constants::News::COMMENTS_URL, { id_extended: id_news, page: page })
             comments_html_raw_data = get_data(comments_html_uri)
             comments_html_list_items = comments_html_raw_data.css('div#newswrap > div#comments-top > ol > li')
             comments_html_list_items.each do |comment_item|

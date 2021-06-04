@@ -24,6 +24,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'httparty'
   spec.add_dependency 'mechanize', '~> 2.8.1'
   spec.add_dependency 'mini_racer'
+  spec.add_dependency 'socksify'
+  spec.add_dependency 'tor'
   # spec.add_dependency 'nokogiri', '~> 1.10'
 
   spec.add_development_dependency 'coveralls'

@@ -1,4 +1,4 @@
-# encoding: UTF-8
+# frozen_string_literal: true
 
 module Wagg
   module Crawler
@@ -33,6 +33,7 @@ module Wagg
       # @!attribute [r] statistics
       #   @return [NewsStatistics] the statistics of the news
       attr_reader :statistics
+
       # @!attribute [r] votes
       #   @return [Array] the list of votes of the news
       def votes
@@ -43,9 +44,7 @@ module Wagg
         end
       end
 
-      def snapshot_timestamp
-        @snapshot_timestamp
-      end
+      attr_reader :snapshot_timestamp
 
       def initialize(raw_data, snapshot_timestamp = nil, json_data = nil)
         if json_data.nil?
@@ -78,7 +77,7 @@ module Wagg
           @link = json_data.link
           @permalink_id = json_data.permalink_id
           @body = json_data.body
-          @timestamps = json_data.timestamps.to_h.map { |k, v| [k, Time.at(v).utc.to_datetime] }.to_h
+          @timestamps = json_data.timestamps.to_h.transform_values { |v| Time.at(v).utc.to_datetime }
           @category = json_data.category
           @statistics = ::Wagg::Crawler::NewsStatistics.from_json(json_data.statistics)
         end
@@ -86,9 +85,7 @@ module Wagg
 
       class << self
         def parse(raw_data, snapshot_timestamp)
-          news_summary = NewsSummary.new(raw_data, snapshot_timestamp)
-
-          news_summary
+          NewsSummary.new(raw_data, snapshot_timestamp)
         end
       end
 
@@ -100,10 +97,10 @@ module Wagg
       end
 
       def from_json(string)
-        os_object = JSON.parse(string, {:object_class => OpenStruct, :quirks_mode => true})
+        os_object = JSON.parse(string, { object_class: OpenStruct, quirks_mode: true })
 
-        # Some validation that we have the right object
-        if os_object.type == self.name.split('::').last
+        # Some validation so that we have the right object
+        if os_object.type == name.split('::').last
           data = os_object.data
 
           snapshot_timestamp = Time.at(os_object.timestamp).utc
@@ -112,33 +109,28 @@ module Wagg
         end
       end
 
-      def get_data(uri, retriever = nil, retriever_type = ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['news'])
-        if retriever.nil?
-          local_retriever = ::Wagg::Utils::Retriever.instance
-          credentials = ::Wagg::Settings.configuration.credentials
-        else
-          credentials = ::Wagg::Settings.configuration.credentials
-        end
+      def get_data(uri, custom_retriever = nil)
+        retriever = if custom_retriever.nil?
+                      ::Wagg::Utils::Retriever.instance
+                    else
+                      custom_retriever
+                    end
 
-        agent = local_retriever.agent(retriever_type)
-        page = agent.get uri
-        # page.encoding = 'utf-8'
-        # page.body.force_encoding('utf-8')
-        page
+        retriever.get(uri, ::Wagg::Constants::Retriever::AGENT_TYPE['news'], false)
       end
 
       def uri
-        format(::Wagg::Constants::News::MAIN_URL % {id_extended:@id_extended})
+        format(format(::Wagg::Constants::News::MAIN_URL, id_extended: @id_extended))
       end
 
       def permalink
-        format(::Wagg::Constants::News::MAIN_PERMALINK_URL % {permalink_id:@permalink_id})
+        format(format(::Wagg::Constants::News::MAIN_PERMALINK_URL, permalink_id: @permalink_id))
       end
 
       def parse_votes
         @votes = ::Wagg::Crawler::NewsVotes.parse(@id) if !@id.nil? && @votes.nil?
       end
-      
+
       # Private methods below
 
       def parse_id(id_item)
@@ -148,7 +140,7 @@ module Wagg
 
       def parse_id_extended(id_extended_item)
         id_extended_href_item = ::Wagg::Utils::Functions.text_at_xpath(id_extended_item, './a/@href')
-        id_extended_href_matched = id_extended_href_item.match(/\A\/story\/(?<id_extended>.+)/)
+        id_extended_href_matched = id_extended_href_item.match(%r{\A/story/(?<id_extended>.+)})
         @id_extended = id_extended_href_matched[:id_extended]
       end
 
@@ -165,22 +157,22 @@ module Wagg
         # Author's id
         # We don't use ::Wagg::Crawler::Author.get_id() because './a/@class' contains the author's id directly
         author_id_items = ::Wagg::Utils::Functions.text_at_xpath(author_timestamps_item, './a/@class')
-        author_id_matched = author_id_items.match(/\A.+\su\:(?<author_id>\d+)\z/)
+        author_id_matched = author_id_items.match(/\A.+\su:(?<author_id>\d+)\z/)
         author_id = author_id_matched[:author_id]
         # Author's name
         author_name_item = ::Wagg::Utils::Functions.text_at_xpath(author_timestamps_item, './a/@href')
-        author_name_matched = author_name_item.match(/\A\/user\/(?<author_name>.+)\z/)
+        author_name_matched = author_name_item.match(%r{\A/user/(?<author_name>.+)\z})
         author_name = author_name_matched[:author_name]
         @author = ::Wagg::Crawler::FixedAuthor.new(author_name, author_id)
 
         timestamps_items = author_timestamps_item.xpath('./span[contains(concat(" ",normalize-space(@class)," ")," visible ")]')
-        timestamps = Hash.new
+        timestamps = {}
         timestamps_items.each do |timestamp_item|
           case ::Wagg::Utils::Functions.text_at_xpath(timestamp_item, './@title')
-          when /\Aenviado\:\z/
+          when /\Aenviado:\z/
             timestamp_sent = ::Wagg::Utils::Functions.text_at_xpath(timestamp_item, './@data-ts').to_i
             timestamps[::Wagg::Constants::News::STATUS_TYPE['sent']] = Time.at(timestamp_sent).utc.to_datetime
-          when /\Apublicado\:\z/
+          when /\Apublicado:\z/
             timestamp_published = ::Wagg::Utils::Functions.text_at_xpath(timestamp_item, './@data-ts').to_i
             timestamps[::Wagg::Constants::News::STATUS_TYPE['published']] = Time.at(timestamp_published).utc.to_datetime
           end
@@ -202,25 +194,30 @@ module Wagg
           case ::Wagg::Utils::Functions.text_at_xpath(details_item, './@class')
           when /\Avotes-up\z/
             votes_up_item = details_item.css('span > strong')
-            statistics.positive_votes = ::Wagg::Utils::Functions.text_at_xpath(votes_up_item, './span[@class="positive-vote-number"]/text()').to_i
+            statistics.positive_votes = ::Wagg::Utils::Functions.text_at_xpath(votes_up_item,
+                                                                               './span[@class="positive-vote-number"]/text()').to_i
           when /\Avotes-down\z/
             votes_down_item = details_item.css('span > strong')
-            statistics.negative_votes = ::Wagg::Utils::Functions.text_at_xpath(votes_down_item, './span[@class="negative-vote-number"]/text()').to_i
+            statistics.negative_votes = ::Wagg::Utils::Functions.text_at_xpath(votes_down_item,
+                                                                               './span[@class="negative-vote-number"]/text()').to_i
           when /votes-anonymous/
             votes_anonymous_item = details_item.css('span > strong')
-            statistics.anonymous_votes = ::Wagg::Utils::Functions.text_at_xpath(votes_anonymous_item, './span[@class="anonymous-vote-number"]/text()').to_i
+            statistics.anonymous_votes = ::Wagg::Utils::Functions.text_at_xpath(votes_anonymous_item,
+                                                                                './span[@class="anonymous-vote-number"]/text()').to_i
           when /karma/
             karma_item = details_item.css('span.karma-value')
-            statistics.karma = ::Wagg::Utils::Functions.text_at_xpath(karma_item, './span[@class="karma-number"]/text()').to_i
-          when /sub\-name/
+            statistics.karma = ::Wagg::Utils::Functions.text_at_xpath(karma_item,
+                                                                      './span[@class="karma-number"]/text()').to_i
+          when /sub-name/
             sub_name_item = ::Wagg::Utils::Functions.text_at_xpath(details_item, './a/@href')
-            sub_name_item_matched = sub_name_item.match(/\A\/m\/(?<sub_name>\w+)(?:\/\w+)?/)
+            sub_name_item_matched = sub_name_item.match(%r{\A/m/(?<sub_name>\w+)(?:/\w+)?})
             @category = sub_name_item_matched[:sub_name]
           end
         end
 
         num_comments_item = details_up_item.css('div.news-details-main > a')
-        statistics.num_comments = ::Wagg::Utils::Functions.text_at_xpath(num_comments_item, './@data-comments-number').to_i
+        statistics.num_comments = ::Wagg::Utils::Functions.text_at_xpath(num_comments_item,
+                                                                         './@data-comments-number').to_i
 
         @statistics = statistics
       end
@@ -228,36 +225,35 @@ module Wagg
       def parse_permalink(details_up_item)
         permalink_item = details_up_item.css('div.news-details-main > div > ul > li > button.share-link')
         permalink_uri = ::Wagg::Utils::Functions.text_at_xpath(permalink_item, './@data-clipboard-text')
-        permalink_matched = permalink_uri.match(/\Ahttp\:\/\/menea\.me\/(?<permalink_id>[[:alnum:]]+)\z/)
+        permalink_matched = permalink_uri.match(%r{\Ahttp://menea\.me/(?<permalink_id>[[:alnum:]]+)\z})
 
         @permalink_id = permalink_matched[:permalink_id]
       end
 
       private :parse_id, :parse_id_extended, :parse_content, :parse_statistics, :parse_permalink
 
-      def as_json(options = {})
+      def as_json(_options = {})
         {
-            type: self.class.name.split('::').last,
-            timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
-            data: {
-              id: @id.to_i,
-              id_extended: @id_extended,
-              title: @title,
-              author: @author.to_json,
-              link: @link,
-              permalink_id: @permalink_id,
-              body: body,
-              timestamps: ::Wagg::Utils::Functions.hash_str_datetime_to_json(@ranking, true),
-              category: @category,
-              statistics: @statistics.to_json
-            }
+          type: self.class.name.split('::').last,
+          timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
+          data: {
+            id: @id.to_i,
+            id_extended: @id_extended,
+            title: @title,
+            author: @author.to_json,
+            link: @link,
+            permalink_id: @permalink_id,
+            body: body,
+            timestamps: ::Wagg::Utils::Functions.hash_str_datetime_to_json(@ranking, true),
+            category: @category,
+            statistics: @statistics.to_json
+          }
         }
       end
 
       def to_json(*options)
         as_json(*options).to_json(*options)
       end
-
     end
   end
 end

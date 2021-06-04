@@ -1,4 +1,4 @@
-# encoding: UTF-8
+# frozen_string_literal: true
 
 require 'wagg/utils/functions'
 
@@ -39,10 +39,10 @@ module Wagg
 
       class << self
         def from_json(string)
-          os_object = JSON.parse(string, {:object_class => OpenStruct, :quirks_mode => true})
+          os_object = JSON.parse(string, { object_class: OpenStruct, quirks_mode: true })
 
           # Some validation that we have the right object
-          if os_object.type == self.name.split('::').last
+          if os_object.type == name.split('::').last
             data = os_object.data
 
             name = data.name
@@ -61,21 +61,20 @@ module Wagg
         !!@name.match?(::Wagg::Constants::Author::DISABLED_REGEX)
       end
 
-      def as_json(options = {})
+      def as_json(_options = {})
         {
-            type: self.class.name.split('::').last,
-            timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
-            data: {
-              id: @id.to_i,
-              name: @name
-            }
+          type: self.class.name.split('::').last,
+          timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
+          data: {
+            id: @id.to_i,
+            name: @name
+          }
         }
       end
 
       def to_json(*options)
         as_json(*options).to_json(*options)
       end
-
     end
 
     class Author < FixedAuthor
@@ -108,7 +107,6 @@ module Wagg
       attr_reader :subs_follow
 
       def initialize(name, id = nil, snapshot_timestamp = nil, json_data = nil)
-
         if json_data.nil?
           super(name, id)
 
@@ -123,20 +121,20 @@ module Wagg
           # TODO: Make these class methods rather than instance ones?
           if id.nil?
             if disabled?
-              parse_id()
+              parse_id
             else
-              parse_id()
+              parse_id
             end
           else
             @id = id.to_i
           end
-          parse_profile()
-          parse_subs_own()
-          parse_subs_follow()
-          parse_friends()
-          parse_friends_of()
-          parse_subs_own()
-          parse_subs_follow()
+          parse_profile
+          parse_subs_own
+          parse_subs_follow
+          parse_friends
+          parse_friends_of
+          parse_subs_own
+          parse_subs_follow
           # parse_notes()
         else
           super(json_data.name, json_data.id)
@@ -146,8 +144,8 @@ module Wagg
           @karma = json_data.karma
           @ranking = json_data.ranking
           @entropy = json_data.entropy
-          @friends = json_data.friends.to_h.map { |k, v| [k, Time.at(v).utc.to_datetime] }.to_h
-          @friends_of = json_data.friends_of.to_h.map { |k, v| [k, Time.at(v).utc.to_datetime] }.to_h
+          @friends = json_data.friends.to_h.transform_values { |v| Time.at(v).utc.to_datetime }
+          @friends_of = json_data.friends_of.to_h.transform_values { |v| Time.at(v).utc.to_datetime }
           @subs_own = json_data.subs_own
           @subs_follow = json_data.subs_follow
 
@@ -157,16 +155,14 @@ module Wagg
 
       class << self
         def parse(name)
-          author = Author.new(name)
-
-          author
+          Author.new(name)
         end
 
         def from_json(string)
-          os_object = JSON.parse(string, {:object_class => OpenStruct, :quirks_mode => true})
+          os_object = JSON.parse(string, { object_class: OpenStruct, quirks_mode: true })
 
           # Some validation that we have the right object
-          if os_object.type == self.name.split('::').last
+          if os_object.type == name.split('::').last
             data = os_object.data
 
             snapshot_timestamp = Time.at(os_object.timestamp).utc
@@ -175,8 +171,7 @@ module Wagg
           end
         end
 
-
-        def get_id(img_item)
+        def parse_id_from_img(img_item)
           # Guarantee that we have a Nokogiri::XML::Element object parameter
           # Make sure that we have the right Nokogiri::XML::Element
           unless img_item.respond_to?(:classes) && img_item.classes.include?('avatar')
@@ -186,41 +181,33 @@ module Wagg
           id_item = ::Wagg::Utils::Functions.text_at_xpath(img_item, './@src')
           id_matched = id_item.match(::Wagg::Constants::Author::AVATAR_REGEX)
           # id = (id_matched[:id] unless id_matched.nil? || id_matched[:id].nil?)
-          id = if id_matched.nil? || id_matched[:id].nil?
+          if id_matched.nil? || id_matched[:id].nil?
             nil
           else
             id_matched[:id].to_i
-               end
-
-          id
+          end
         end
       end
 
-      def get_data(uri, retriever = nil, retriever_type = ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['author'])
-        if retriever.nil?
-          local_retriever = ::Wagg::Utils::Retriever.instance
-          credentials = ::Wagg::Settings.configuration.credentials
-        else
-          credentials = ::Wagg::Settings.configuration.credentials
-        end
+      def get_data(uri, custom_retriever = nil)
+        retriever = if custom_retriever.nil?
+                      ::Wagg::Utils::Retriever.instance
+                    else
+                      custom_retriever
+                    end
 
-        agent = local_retriever.agent(retriever_type)
-        page = agent.get uri
-        # page.encoding = 'utf-8'
-        # page.body.force_encoding('utf-8')
-        page
+        retriever.get(uri, ::Wagg::Constants::Retriever::AGENT_TYPE['author'], false)
       end
 
       def parse_id
         id_item = @raw_data.css('#avatar')
-        avatar_source_item = ::Wagg::Utils::Functions.text_at_xpath(id_item,'./@src')
+        avatar_source_item = ::Wagg::Utils::Functions.text_at_xpath(id_item, './@src')
 
         if avatar_source_item.match?(::Wagg::Constants::Author::AVATAR_REGEX)
           matched_id = avatar_source_item.match(::Wagg::Constants::Author::AVATAR_REGEX)
           id = matched_id[:id]
           @id = id.to_i
         end
-
       end
 
       def parse_profile
@@ -239,7 +226,7 @@ module Wagg
         profile_name_key = 'Usuario'.downcase
         profile_name = ::Wagg::Utils::Functions.text_at_css(profile_items[profile_name_key])
         if @name == profile_name
-          profile_signup_key ='Desde'.downcase
+          profile_signup_key = 'Desde'.downcase
           profile_signup = ::Wagg::Utils::Functions.text_at_css(profile_items[profile_signup_key])
           @signup = DateTime.strptime(profile_signup, '%d-%m-%Y %H:%M %Z')
 
@@ -280,25 +267,25 @@ module Wagg
       end
 
       def parse_friends
-        friends_uri = ::Wagg::Constants::Author::FRIENDS_URL % {author: @name}
+        friends_uri = format(::Wagg::Constants::Author::FRIENDS_URL, author: @name)
         friends = parse_relationships(friends_uri)
         @friends = friends
       end
 
       def parse_friends_of
-        friends_of_uri = ::Wagg::Constants::Author::FRIENDS_OF_URL % {author: @name}
+        friends_of_uri = format(::Wagg::Constants::Author::FRIENDS_OF_URL, author: @name)
         friends_of = parse_relationships(friends_of_uri)
         @friends_of = friends_of
       end
 
       def parse_subs_own
-        subs_own_uri = ::Wagg::Constants::Author::SUBS_OWN_URL % {author: @name}
+        subs_own_uri = format(::Wagg::Constants::Author::SUBS_OWN_URL, author: @name)
         subs_own = parse_subs(subs_own_uri)
         @subs_own = subs_own
       end
 
       def parse_subs_follow
-        subs_follow_uri = ::Wagg::Constants::Author::SUBS_FOLLOW_URL % {author: @name}
+        subs_follow_uri = format(::Wagg::Constants::Author::SUBS_FOLLOW_URL, author: @name)
         subs_follow = parse_subs(subs_follow_uri)
         @subs_follow = subs_follow
       end
@@ -307,18 +294,20 @@ module Wagg
         raise 'Not implemented yet.'
       end
 
+      private :parse_id, :parse_profile, :parse_friends, :parse_friends_of, :parse_subs_own, :parse_subs_follow
+
       def parse_relationships(uri)
         relationships_raw_data = get_data(uri)
         relationships_table_items = relationships_raw_data.css('div#container > section > div.contents-layout > div.contents-body')
 
-        relationships = Hash.new
+        relationships = {}
         if relationships_table_items.at_css('p.info').nil?
           # relationships_items = friends_table_items.search('.//div[contains(concat(' ", normalize-space(@class), " "), " friends-item ")]')
           relationships_items = relationships_table_items.css('div.friends-item')
           # We are friendly!!!
           relationships_items.each do |relationship|
-            name_item = ::Wagg::Utils::Functions.text_at_xpath(relationship,'./a/@href')
-            date_item = ::Wagg::Utils::Functions.text_at_xpath(relationship,'./a/@title')
+            name_item = ::Wagg::Utils::Functions.text_at_xpath(relationship, './a/@href')
+            date_item = ::Wagg::Utils::Functions.text_at_xpath(relationship, './a/@title')
             matched_name = name_item.match(%r{\A/user/(?<name>.+)\z})
             name = matched_name[:name]
             matched_datetime = date_item.match(/\A#{name}\sdesde\s(?<date>.+)\z/)
@@ -329,7 +318,7 @@ module Wagg
                 date = DateTime.strptime(matched_datetime[:date], '%d-%m-%Y %H:%M %Z')
               else
                 now = DateTime.now.new_offset # Current datetime in UTC
-                date = DateTime.strptime(now.strftime('%d-%m-%Y') + ' ' + matched_time[:time], '%d-%m-%Y %H:%M %Z')
+                date = DateTime.strptime("#{now.strftime('%d-%m-%Y')} #{matched_time[:time]}", '%d-%m-%Y %H:%M %Z')
               end
             end
             relationships[name] = date
@@ -349,8 +338,8 @@ module Wagg
           subs_items = subs_table_items.css('table > tr > td.name')
           # We are friendly!!!
           subs_items.each do |sub|
-            name = ::Wagg::Utils::Functions.text_at_xpath(sub,'./a/@href')
-            # TODO Clean up sub name?
+            name = ::Wagg::Utils::Functions.text_at_xpath(sub, './a/@href')
+            # TODO: Clean up sub name?
             subs << name
           end
         end
@@ -360,7 +349,7 @@ module Wagg
 
       private :parse_relationships, :parse_subs
 
-      def as_json(options = {})
+      def as_json(_options = {})
         {
           type: self.class.name.split('::').last,
           timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
@@ -384,7 +373,6 @@ module Wagg
       def to_json(*options)
         as_json(*options).to_json(*options)
       end
-
     end
   end
 end

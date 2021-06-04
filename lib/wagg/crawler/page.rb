@@ -1,67 +1,66 @@
-# encoding: UTF-8
+# frozen_string_literal: true
 
 module Wagg
   module Crawler
     class Page
-      attr_reader :index
-      attr_reader :news_list
-
-      attr_reader :min_timestamp, :max_timestamp
+      attr_reader :index, :news_list, :min_timestamp, :max_timestamp
 
       def initialize(index, type = ::Wagg::Constants::News::STATUS_TYPE['published'])
         @index = index
 
         @snapshot_timestamp = Time.now.utc
-        @raw_data = get_data(format(::Wagg::Constants::Page::MAIN_URL[type], page:@index))
+        @raw_data = get_data(format(::Wagg::Constants::Page::MAIN_URL[type], page: index))
 
         @news_list = parse_summaries(type)
-        #@min_timestamp, @max_timestamp = parse_timestamps
+        # @min_timestamp, @max_timestamp = parse_timestamps
       end
 
       class << self
-        def parse(index, type='published')
-          page = Page.new(index, type)
-
-          page
+        def parse(index, type = 'published')
+          Page.new(index, type)
         end
       end
 
-      def get_data(uri, retriever=nil, retriever_type=::Wagg::Constants::Retriever::RETRIEVAL_TYPE['page'])
-        if retriever.nil?
-          local_retriever = ::Wagg::Utils::Retriever.instance
-          credentials = ::Wagg::Settings.configuration.credentials
-        else
-          credentials = ::Wagg::Settings.configuration.credentials
-        end
+      def get_data(uri, custom_retriever = nil)
+        retriever = if custom_retriever.nil?
+                      ::Wagg::Utils::Retriever.instance
+                    else
+                      custom_retriever
+                    end
 
-        agent = local_retriever.agent(retriever_type)
-        page = agent.get uri
-        # page.encoding = 'utf-8'
-        # page.body.force_encoding('utf-8')
-        page
+        retriever.get(uri, ::Wagg::Constants::Retriever::AGENT_TYPE['page'], false)
+      end
+      
+      def get_summary(index, raw = false)
+        if index <= ::Wagg::Constants::Page::MAX_SUMMARIES
+          if raw
+            raw_summaries = get_raw_summaries_list
+            summary = raw_summaries[index]
+          else
+            summary = @news_list[index]
+          end
+
+          summary
+        end
       end
 
       def parse_summaries(type = ::Wagg::Constants::News::STATUS_TYPE['published'])
         if @raw_data.nil?
-          page_uri = format(::Wagg::Constants::Page::MAIN_URL[type], page:@index)
-          page_raw_data = get_data(page_uri)
-        else
-          page_raw_data = @raw_data
+          page_uri = format(::Wagg::Constants::Page::MAIN_URL[type], page: @index)
+          @raw_data = get_data(page_uri)
         end
 
-        page_summaries_items = page_raw_data.css('div#newswrap > div.news-summary')
-
-        summaries = []
-        page_summaries_items.each do |summary_item|
-          summary = ::Wagg::Crawler::NewsSummary.new(summary_item, @snapshot_timestamp)
-
-          summaries << summary
-        end
+        page_summaries_items = get_raw_summaries_list
+        summaries = page_summaries_items.map { |summary_item| ::Wagg::Crawler::NewsSummary.new(summary_item, @snapshot_timestamp) }
 
         summaries
       end
 
+      def get_raw_summaries_list
+        @raw_data.css('div#newswrap > div.news-summary')
+      end
+
+      private :parse_summaries, :get_raw_summaries_list
     end
   end
 end
-

@@ -1,6 +1,6 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 class CommentTest < MiniTest::Test
   def setup
@@ -25,5 +25,4 @@ class CommentTest < MiniTest::Test
 
     assert_equal(actual_hidden_body, expected_hidden_body)
   end
-
 end

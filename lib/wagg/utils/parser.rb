@@ -1,4 +1,4 @@
-# encoding: UTF-8
+# frozen_string_literal: true
 
 require 'feedjira'
 
@@ -13,25 +13,25 @@ module Feedjira
         include Feedjira::FeedEntryUtilities
 
         # Declare the fields we want to parse out of the XML feed.
-        element :title, :as => :comment_title
-        element :link, :as => :comment_url
-        element 'meneame:url', :as => :news_url
-        element 'meneame:comment_id', :as => :comment_id
-        element 'meneame:link_id', :as => :news_id
-        element 'meneame:order', :as => :index
-        element 'meneame:user', :as => :author
-        element 'meneame:votes', :as => :num_votes
-        element 'meneame:karma', :as => :karma
-        element :pubDate, :as => :published
-        element :description, :as => :body
+        element :title, as: :comment_title
+        element :link, as: :comment_url
+        element 'meneame:url', as: :news_url
+        element 'meneame:comment_id', as: :comment_id
+        element 'meneame:link_id', as: :news_id
+        element 'meneame:order', as: :index
+        element 'meneame:user', as: :author
+        element 'meneame:votes', as: :num_votes
+        element 'meneame:karma', as: :karma
+        element :pubDate, as: :published
+        element :description, as: :body
 
-        element :guid, :as => :entry_id
+        element :guid, as: :entry_id
 
         # We remove the query string from the url by overriding the 'url' method
         # originally defined by including FeedEntryUtilities in our class.
         # (see https://github.com/feedjira/feedjira/blob/master/lib/feedjira/feed_entry_utilities.rb)
         def url
-          @url = @url.gsub(/\?.*$/,'')
+          @url = @url.gsub(/\?.*$/, '')
         end
       end
 
@@ -41,13 +41,13 @@ module Feedjira
 
         # Define the fields we want to parse using SAX Machine declarations
         element :title
-        element :link, :as => :site_url
-        element :description, :as => :site_description
-        element :pubDate, :as => :published
+        element :link, as: :site_url
+        element :description, as: :site_description
+        element :pubDate, as: :published
         element :language
 
         # Parse all the <item>s in the feed with the class we just defined above
-        elements :item, :as => :entries, :class => CommentsEntry
+        elements :item, as: :entries, class: CommentsEntry
 
         attr_accessor :feed_url
 
@@ -63,7 +63,7 @@ module Feedjira
         # '<link>http://www.meneame.net' which we should
         # only really find in the feed we are targeting.
         def self.able_to_parse?(xml)
-          (/<link>http:\/\/www\.meneame\.net\// =~ xml)
+          (%r{<link>http://www\.meneame\.net/} =~ xml)
         end
       end
     end

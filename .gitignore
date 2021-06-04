@@ -169,7 +169,6 @@ bower.json
 .powenv
 # rcov generated
 coverage
-coverage.data
 
 # rdoc generated
 rdoc

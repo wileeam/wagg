@@ -1,18 +1,14 @@
-# encoding: UTF-8
+# frozen_string_literal: true
 
 require 'wagg/crawler/author'
 
 module Wagg
   module Crawler
     class Vote
-      attr_reader :type
-      attr_reader :author
-      attr_reader :sign
-      attr_reader :weight
-      attr_reader :timestamp
+      attr_reader :type, :author, :sign, :weight, :timestamp
 
       def initialize(type, author_name, author_id, sign, weight, timestamp, snapshot_timestamp = nil)
-        @type = type
+        @type = type # ::Wagg::Constants::Vote::TYPE[type]
         @author = ::Wagg::Crawler::FixedAuthor.new(author_name, author_id, snapshot_timestamp)
         @sign = sign
         @weight = weight
@@ -22,18 +18,17 @@ module Wagg
     end
 
     class ListVotes
-      attr_reader :id
-      attr_reader :votes
+      attr_reader :id, :votes
 
       def num_votes
-        @votes.length()
+        @votes.length
       end
 
       def positive_votes
         signs = @votes.map do |vote|
           vote.sign == ::Wagg::Constants::Vote::SIGN['positive'] ? 1 : 0
         end
-        
+
         signs.sum
       end
 
@@ -46,19 +41,14 @@ module Wagg
         @votes = parse(id, type)
       end
 
-      def get_data(uri, retriever = nil, retriever_type = ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['vote'])
-        if retriever.nil?
-          local_retriever = ::Wagg::Utils::Retriever.instance
-          credentials = ::Wagg::Settings.configuration.credentials
-        else
-          credentials = ::Wagg::Settings.configuration.credentials
-        end
+      def get_data(uri, custom_retriever = nil)
+        retriever = if custom_retriever.nil?
+                      ::Wagg::Utils::Retriever.instance
+                    else
+                      custom_retriever
+                    end
 
-        agent = local_retriever.agent(retriever_type)
-        page = agent.get uri
-        # page.encoding = 'utf-8'
-        # page.body.force_encoding('utf-8')
-        page
+        retriever.get(uri, ::Wagg::Constants::Retriever::AGENT_TYPE['vote'], false)
       end
 
       def parse(id, type = ::Wagg::Constants::Vote::TYPE['news'])
@@ -99,7 +89,7 @@ module Wagg
             # author_id_matched = author_id_item.match(::Wagg::Constants::Author::AVATAR_REGEX)
             # author_id = (author_id_matched[:id] unless author_id_matched.nil? || author_id_matched[:id].nil?)
             author_id_item = vote_item.at_css('a > img')
-            author_id = ::Wagg::Crawler::Author.get_id(author_id_item)
+            author_id = ::Wagg::Crawler::Author.parse_id_from_img(author_id_item)
 
             timestamp_weight_item = ::Wagg::Utils::Functions.text_at_xpath(vote_item, './a/@title')
             case type
@@ -108,7 +98,7 @@ module Wagg
               vote_hash = timestamp_weight_matched.named_captures
               if vote_hash['datetime'].nil? && !vote_hash['time'].nil?
                 now = DateTime.now.new_offset # Current datetime in UTC
-                vote_date = DateTime.strptime(now.strftime('%d-%m-%Y') + ' ' + vote_hash['time'], '%d-%m-%Y %H:%M %Z')
+                vote_date = DateTime.strptime("#{now.strftime('%d-%m-%Y')} #{vote_hash['time']}", '%d-%m-%Y %H:%M %Z')
               else
                 vote_date = DateTime.strptime(vote_hash['datetime'], '%d-%m-%Y %H:%M %Z')
               end
@@ -126,25 +116,26 @@ module Wagg
               timestamp_weight_matched = timestamp_weight_item.match(::Wagg::Constants::Vote::COMMENT_REGEX)
               vote_hash = timestamp_weight_matched.named_captures
               now = DateTime.now.new_offset # Current datetime in UTC
-              vote_date = DateTime.strptime(now.strftime('%Y') + '/' + vote_hash['datetime'] + ' ' + 'UTC', '%Y/%d/%m-%H:%M:%S %Z')
+              vote_date = DateTime.strptime("#{now.strftime('%Y')}/#{vote_hash['datetime']} UTC",
+                                            '%Y/%d/%m-%H:%M:%S %Z')
               vote_weight = vote_hash['weight'].to_i
               vote_sign = if vote_weight >= 0
-                ::Wagg::Constants::Vote::COMMENT_SIGN['positive']
-              else
-                ::Wagg::Constants::Vote::COMMENT_SIGN['negative']
+                            ::Wagg::Constants::Vote::COMMENT_SIGN['positive']
+                          else
+                            ::Wagg::Constants::Vote::COMMENT_SIGN['negative']
                           end
             end
 
-            vote = ::Wagg::Crawler::Vote.new(type, author_name, author_id, vote_sign, vote_weight, vote_date, snapshot_timestamp)
+            vote = ::Wagg::Crawler::Vote.new(type, author_name, author_id, vote_sign, vote_weight, vote_date,
+                                             snapshot_timestamp)
             votes_list << vote
           end
         end
 
         votes_list
       end
-
     end
-    
+
     class NewsVotes < ListVotes
       def initialize(id)
         super(id, ::Wagg::Constants::Vote::TYPE['news'])
@@ -152,9 +143,7 @@ module Wagg
 
       class << self
         def parse(id)
-          votes = NewsVotes.new(id)
-
-          votes
+          NewsVotes.new(id)
         end
       end
     end
@@ -166,12 +155,9 @@ module Wagg
 
       class << self
         def parse(id)
-          votes = CommentVotes.new(id)
-
-          votes
+          CommentVotes.new(id)
         end
       end
     end
-
   end
 end

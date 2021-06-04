@@ -1,4 +1,4 @@
-# encoding: UTF-8
+# frozen_string_literal: true
 
 module Wagg
   module Crawler
@@ -19,10 +19,10 @@ module Wagg
 
       class << self
         def from_json(string)
-          os_object = JSON.parse(string, {:object_class => OpenStruct, :quirks_mode => true})
+          os_object = JSON.parse(string, { object_class: OpenStruct, quirks_mode: true })
 
           # Some validation that we have the right object
-          if os_object.type == self.name.split('::').last
+          if os_object.type == name.split('::').last
             data = os_object.data
 
             name = data.name
@@ -33,7 +33,7 @@ module Wagg
         end
       end
 
-      def as_json(options = {})
+      def as_json(_options = {})
         {
           type: self.class.name.downcase,
           timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp),
@@ -46,7 +46,6 @@ module Wagg
       def to_json(*options)
         as_json(*options).to_json(*options)
       end
-
     end
   end
 end

@@ -1,27 +1,23 @@
-# encoding: UTF-8
+# frozen_string_literal: true
 
 module Wagg
   module Utils
     module Functions
       def self.text_at_css(root, css = nil)
         raw_element = root
-        unless css.nil?
-          raw_element = root.at_css(css)
-        end
+        raw_element = root.at_css(css) unless css.nil?
 
         # raw_element.nil? == root.at(css).nil?
         if raw_element.nil?
           nil
         else
-          raw_element.text().scrub.strip
+          raw_element.text.scrub.strip
         end
       end
 
-      def self.text_at_xpath(root, xpath = nil, transliterate = false)
+      def self.text_at_xpath(root, xpath = nil)
         raw_element = nil
-        unless xpath.nil?
-          raw_element = root.at_xpath(xpath)
-        end
+        raw_element = root.at_xpath(xpath) unless xpath.nil?
 
         # raw_element.nil? == root.at(css).nil?
         if raw_element.nil?
@@ -51,19 +47,17 @@ module Wagg
         h = {}
         hash.each do |key, datetime|
           h[key] = nil
-          unless datetime.nil?
-            if unixtime
-              h[key] = datetime_to_unix(datetime)
-            else
-              h[key] = datetime_to_text(datetime)
-            end
-            
-          end
+          next if datetime.nil?
+
+          h[key] = if unixtime
+                     datetime_to_unix(datetime)
+                   else
+                     datetime_to_text(datetime)
+                   end
         end
 
         h
       end
-
     end
   end
 end

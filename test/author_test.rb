@@ -1,6 +1,6 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 class AuthorTest < MiniTest::Test
   def setup
@@ -47,7 +47,7 @@ class AuthorTest < MiniTest::Test
     id_author = 'neotobarra2'
     author = ::Wagg.author(id_author)
 
-    expected_id = 292897
+    expected_id = 292_897
     actual_id = author.id
 
     assert_equal(expected_id, actual_id)
@@ -66,7 +66,7 @@ class AuthorTest < MiniTest::Test
     author = ::Wagg.author(subs_author)
 
     assert_equal(author.subs_own.length, 0)
-    assert_operator(author.subs_follow.length,'>=', 10)
+    assert_operator(author.subs_follow.length, '>=', 10)
   end
 
   def test_get_enabled_author_page
@@ -96,5 +96,4 @@ class AuthorTest < MiniTest::Test
 
     assert_equal(expected_author_json, actual_author_json)
   end
-
 end

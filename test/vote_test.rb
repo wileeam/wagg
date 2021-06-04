@@ -1,6 +1,6 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 class VoteTest < MiniTest::Test
   def setup
@@ -23,7 +23,8 @@ class VoteTest < MiniTest::Test
     page = ::Wagg.page(page_index, page_type)
     first_news = page.news_list.first
 
-    assert_equal(first_news.statistics.num_votes, first_news.statistics.positive_votes + first_news.statistics.negative_votes)
+    assert_equal(first_news.statistics.num_votes,
+                 first_news.statistics.positive_votes + first_news.statistics.negative_votes)
     assert_equal(first_news.votes.num_votes, first_news.votes.positive_votes + first_news.votes.negative_votes)
 
     assert_operator(first_news.votes.positive_votes, :>=, first_news.statistics.positive_votes)
@@ -43,5 +44,4 @@ class VoteTest < MiniTest::Test
     actual_votes_num_votes = first_comment_last_news.votes.num_votes
     assert_equal(expected_num_votes, actual_votes_num_votes)
   end
-
 end

@@ -1,4 +1,4 @@
-# encoding: UTF-8
+# frozen_string_literal: true
 
 require 'mini_racer'
 require 'feedjira'
@@ -33,6 +33,7 @@ module Wagg
       # @!attribute [r] num_comments
       #   @return [Integer] the number of comments of the news
       attr_accessor :num_comments
+
       # @!attribute [r] num_votes
       #   @return [Integer] the number of positive and negative votes of the news
       def num_votes
@@ -48,26 +49,24 @@ module Wagg
       end
 
       def initialize(snapshot_timestamp = nil, json_data = nil)
-        if json_data.nil?
-          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
-        else
+        unless json_data.nil?
           @karma = json_data.karma
           @positive_votes = json_data.positive_votes
           @negative_votes = json_data.negative_votes
           @anonymous_votes = json_data.anonymous_votes
           @num_clicks = json_data.num_clicks
           @num_comments = json_data.num_comments
-
-          @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
         end
+
+        @snapshot_timestamp = snapshot_timestamp.nil? ? Time.now.utc : snapshot_timestamp
       end
 
       class << self
         def from_json(string)
-          os_object = JSON.parse(string, {:object_class => OpenStruct, :quirks_mode => true})
+          os_object = JSON.parse(string, { object_class: OpenStruct, quirks_mode: true })
 
           # Some validation that we have the right object
-          if os_object.type == self.name.split('::').last
+          if os_object.type == name.split('::').last
             data = os_object.data
 
             snapshot_timestamp = Time.at(os_object.timestamp).utc
@@ -77,7 +76,7 @@ module Wagg
         end
       end
 
-      def as_json(options = {})
+      def as_json(_options = {})
         {
           type: self.class.name.split('::').last,
           timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
@@ -95,7 +94,6 @@ module Wagg
       def to_json(*options)
         as_json(*options).to_json(*options)
       end
-
     end
 
     class News < NewsSummary
@@ -156,13 +154,13 @@ module Wagg
           @link = json_data.link
           @permalink_id = json_data.permalink_id
           @body = json_data.body
-          @timestamps = json_data.timestamps.to_h.map { |k, v| [k, Time.at(v).utc.to_datetime] }.to_h
+          @timestamps = json_data.timestamps.to_h.transform_values { |v| Time.at(v).utc.to_datetime }
           @category = json_data.category
           @statistics = ::Wagg::Crawler::NewsStatistics.from_json(json_data.statistics)
 
           @tags = json_data.tags
           @karma_events = json_data.karma_events.to_h
-          karma_events_list = @karma_events[:karma].map { |karma_event| [karma_event[0], karma_event[1].to_h]  }
+          karma_events_list = @karma_events[:karma].map { |karma_event| [karma_event[0], karma_event[1].to_h] }
           @karma_events[:karma] = karma_events_list
           @log_events = json_data.log_events.to_h.map { |k, v| [k.to_s.to_i, v.to_h] }.to_h
 
@@ -186,16 +184,14 @@ module Wagg
 
       class << self
         def parse(id_extended, comments_mode = 'rss')
-          news = News.new(id_extended, comments_mode)
-
-          news
+          News.new(id_extended, comments_mode)
         end
 
         def from_json(string)
-          os_object = JSON.parse(string, {:object_class => OpenStruct, :quirks_mode => true})
+          os_object = JSON.parse(string, { object_class: OpenStruct, quirks_mode: true })
 
           # Some validation that we have the right object
-          if os_object.type == self.name.split('::').last
+          if os_object.type == name.split('::').last
             data = os_object.data
 
             snapshot_timestamp = Time.at(os_object.timestamp).utc
@@ -213,19 +209,14 @@ module Wagg
         end
       end
 
-      def get_data(uri, retriever = nil, retriever_type = ::Wagg::Constants::Retriever::RETRIEVAL_TYPE['news'])
-        if retriever.nil?
-          local_retriever = ::Wagg::Utils::Retriever.instance
-          credentials = ::Wagg::Settings.configuration.credentials
-        else
-          credentials = ::Wagg::Settings.configuration.credentials
-        end
+      def get_data(uri, custom_retriever = nil)
+        retriever = if custom_retriever.nil?
+                      ::Wagg::Utils::Retriever.instance
+                    else
+                      custom_retriever
+                    end
 
-        agent = local_retriever.agent(retriever_type)
-        page = agent.get uri
-        # page.encoding = 'utf-8'
-        # page.body.force_encoding('utf-8')
-        page
+        retriever.get(uri, ::Wagg::Constants::Retriever::AGENT_TYPE['news'], false)
       end
 
       def parse_tags(tags_item)
@@ -303,7 +294,7 @@ module Wagg
 
         story_events_raw_data = get_data(story_events_uri)
 
-        story_events_json = JSON.parse(story_events_raw_data.body, {:quirks_mode => true})
+        story_events_json = JSON.parse(story_events_raw_data.body, { quirks_mode: true })
 
         story_events = {}
         story_events_json.each do |story|
@@ -356,16 +347,16 @@ module Wagg
       end
 
       def parse_comments(mode = 'rss')
-        if mode == 'rss'
-          @comments = ::Wagg::Crawler::ListComments.new(@id, @statistics.num_comments, mode)
-        else
-          @comments = ::Wagg::Crawler::ListComments.new(@id_extended, @statistics.num_comments, mode)
-        end
+        @comments = if mode == 'rss'
+                      ::Wagg::Crawler::ListComments.new(@id, @statistics.num_comments, mode)
+                    else
+                      ::Wagg::Crawler::ListComments.new(@id_extended, @statistics.num_comments, mode)
+                    end
       end
 
       private :parse_status_events, :parse_karma_events
 
-      def as_json(options = {})
+      def as_json(_options = {})
         {
           type: self.class.name.split('::').last,
           timestamp: ::Wagg::Utils::Functions.timestamp_to_text(@snapshot_timestamp, '%s').to_i,
@@ -382,7 +373,7 @@ module Wagg
             statistics: @statistics.to_json,
             tags: @tags,
             karma_events: (@karma_events.nil? ? {} : @karma_events),
-            log_events: (@log_events.nil? ? {} : @log_events),
+            log_events: (@log_events.nil? ? {} : @log_events)
             # comments: TODO
           }
         }
@@ -391,7 +382,6 @@ module Wagg
       def to_json(*options)
         as_json(*options).to_json(*options)
       end
-
     end
   end
 end

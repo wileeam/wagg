@@ -1,5 +1,6 @@
-# encoding: UTF-8
+# frozen_string_literal: true
 
+require 'logger'
 require 'yaml'
 
 require 'wagg/version'
@@ -8,11 +9,12 @@ require 'wagg/utils/retriever'
 
 require_relative 'wagg/crawler/author'
 require_relative 'wagg/crawler/news'
+require_relative 'wagg/crawler/news_summary'
 require_relative 'wagg/crawler/comment'
 require_relative 'wagg/crawler/page'
 
 module Wagg
-  #class Error < StandardError; end
+  # class Error < StandardError; end
 
   class << self
     def author(name)
@@ -27,11 +29,11 @@ module Wagg
       Crawler::News.parse(id_extended, comments_mode)
     end
 
-    def comment(id)
+    def comment(_id)
       false
     end
 
-    def votes(id, type='news')
+    def votes(_id, _type = 'news')
       false
     end
 
@@ -60,25 +62,17 @@ module Wagg
 
     class Configuration
       attr_accessor :credentials
-      attr_accessor :user_agent
-      attr_accessor :user_agent_log
 
       def initialize
-        @credentials = Hash.new
-        @credentials['username'] = nil
-        @credentials['password'] = nil
+        @credentials = {'username' => nil, 'password' => nil}
 
         secrets_path = ::Wagg::Constants::Retriever::CREDENTIALS_PATH
         if File.file?(secrets_path)
-          credentials_yaml = YAML.load(File.read(secrets_path))
+          credentials_yaml = YAML.safe_load(File.read(secrets_path))
 
           @credentials['username'] = credentials_yaml['username']
           @credentials['password'] = credentials_yaml['password']
         end
-
-        @user_agent = 'Mac Mozilla'
-        @user_agent_log = false
-        @user_agent_logpath = 'mechanize_agent.log'
       end
 
       # def credentials?
@@ -91,6 +85,18 @@ module Wagg
       #   return FALSE
       # end
     end
-
   end
+
+  class Logging
+    def self.log
+      if @logger.nil?
+        @logger = Logger.new(STDOUT)
+        @logger.level = Logger::DEBUG
+        @logger.datetime_format = '%Y-%m-%d %H:%M:%S '
+      end
+
+      @logger
+    end
+  end
+
 end
